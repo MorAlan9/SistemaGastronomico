@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.SplitPane?>
+<?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<SplitPane dividerPositions="0.6" prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gastronomia.sistemaGastronomico.controller.TomaPedidoController">
+    <items>
+        <AnchorPane minHeight="0.0" minWidth="0.0">
+            <children>
+                <VBox spacing="10.0" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="10.0">
+                    <children>
+                        <Label text="Carta / Menú">
+                            <font>
+                                <Font name="System Bold" size="18.0" />
+                            </font>
+                        </Label>
+
+                        <HBox fx:id="contenedorFiltros" spacing="10.0" />
+
+                        <FlowPane fx:id="contenedorProductos" hgap="10.0" vgap="10.0" VBox.vgrow="ALWAYS" />
+                    </children>
+                </VBox>
+            </children>
+        </AnchorPane>
+
+        <AnchorPane minHeight="0.0" minWidth="0.0">
+            <children>
+                <VBox spacing="15.0" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="10.0">
+                    <children>
+                        <Label fx:id="lblTituloMesa" text="Mesa X" textFill="#2c3e50">
+                            <font>
+                                <Font name="System Bold" size="24.0" />
+                            </font>
+                        </Label>
+
+                        <ListView fx:id="listaItems" VBox.vgrow="ALWAYS" />
+
+                        <Label fx:id="lblTotal" alignment="CENTER_RIGHT" maxWidth="1.7976931348623157E308" text="Total: $0.00" textFill="#d32f2f">
+                            <font>
+                                <Font name="System Bold" size="28.0" />
+                            </font>
+                        </Label>
+
+                        <HBox spacing="10.0">
+                            <children>
+                                <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#accionVolver" prefHeight="50.0" style="-fx-background-color: #95a5a6; -fx-text-fill: white;" text="🔙 VOLVER" HBox.hgrow="ALWAYS">
+                                    <font><Font name="System Bold" size="14.0" /></font>
+                                </Button>
+
+                                <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#accionCobrar" prefHeight="50.0" style="-fx-background-color: #27ae60; -fx-text-fill: white;" text="💰 COBRAR" HBox.hgrow="ALWAYS">
+                                    <font><Font name="System Bold" size="14.0" /></font>
+                                </Button>
+                            </children>
+                        </HBox>
+                    </children>
+                </VBox>
+            </children>
+        </AnchorPane>
+    </items>
+</SplitPane>

@@ -1,0 +1,15 @@
+package gastronomia.sistemaGastronomico.dao;
+
+import gastronomia.sistemaGastronomico.model.Pedido;
+import gastronomia.sistemaGastronomico.model.DetallePedido;
+import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.stereotype.Repository;
+import java.util.List;
+
+@Repository
+public interface DetallePedidoRepository extends JpaRepository<DetallePedido, Long> {
+
+    // Método extra: Trae todos los renglones (platos) de un pedido específico
+    // Al usar el objeto "Pedido", JPA hace la magia con la Foreign Key
+    List<DetallePedido> findByPedido(Pedido pedido);
+}

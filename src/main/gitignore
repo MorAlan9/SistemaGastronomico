@@ -1,0 +1,15 @@
+# Archivos de compilación (Basura)
+target/
+*.class
+
+# Archivos de IntelliJ (Configuración tuya)
+.idea/
+*.iml
+*.iws
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

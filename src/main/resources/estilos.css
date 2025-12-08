@@ -1,0 +1,62 @@
+
+
+/* 1. BARRA DE NAVEGACIÓN (Efecto Vidrio) */
+.glass-bar {
+    -fx-background-color: rgba(20, 20, 20, 0.85); /* Negro casi transparente */
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 10, 0, 0, 5);
+    -fx-padding: 15;
+}
+
+/* 2. BOTONES DEL MENÚ SUPERIOR */
+.nav-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #ecf0f1;
+    -fx-font-size: 14px;
+    -fx-font-weight: bold;
+    -fx-border-color: rgba(255,255,255,0.3);
+    -fx-border-radius: 5px;
+    -fx-background-radius: 5px;
+    -fx-cursor: hand;
+    -fx-transition: all 0.3s;
+}
+
+.nav-btn:hover {
+    -fx-background-color: rgba(255,255,255,0.2);
+    -fx-border-color: #f39c12;
+    -fx-text-fill: #f39c12; /* Naranja Fudo al pasar el mouse */
+}
+
+/* 3. CONTENEDOR DE MESAS (Vidrio más claro) */
+.glass-container {
+    -fx-background-color: rgba(255, 255, 255, 0.1); /* Blanco muy transparente */
+    -fx-background-radius: 15;
+    -fx-border-radius: 15;
+    -fx-border-color: rgba(255, 255, 255, 0.2);
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 10, 0, 0, 5);
+}
+
+/* 4. MESAS (ESTADOS) */
+.mesa-btn {
+    -fx-background-radius: 10;
+    -fx-font-weight: bold;
+    -fx-font-size: 14px;
+    -fx-cursor: hand;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 5, 0, 0, 2);
+}
+
+.mesa-libre {
+    -fx-background-color: linear-gradient(to bottom right, #2ecc71, #27ae60);
+    -fx-text-fill: white;
+}
+
+.mesa-ocupada {
+    -fx-background-color: linear-gradient(to bottom right, #e74c3c, #c0392b);
+    -fx-text-fill: white;
+    -fx-border-color: #ffcccc;
+    -fx-border-width: 2px;
+}
+
+.mesa-btn:hover {
+    -fx-scale-x: 1.05; /* Efecto Zoom al pasar el mouse */
+    -fx-scale-y: 1.05;
+}
