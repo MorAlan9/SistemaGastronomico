@@ -26,14 +26,51 @@ public class Mesa {
         this.capacidad = capacidad;
     }
 
-    public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
-    public Integer getNumero() { return numero; }
-    public void setNumero(Integer numero) { this.numero = numero; }
-    public Integer getCapacidad() { return capacidad; }
-    public void setCapacidad(Integer capacidad) { this.capacidad = capacidad; }
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public Integer getNumero() {
+        return numero;
+    }
+
+    public void setNumero(Integer numero) {
+        this.numero = numero;
+    }
+
+    public Integer getCapacidad() {
+        return capacidad;
+    }
+
+    public void setCapacidad(Integer capacidad) {
+        this.capacidad = capacidad;
+    }
 
     // Getters y Setters de Sector
-    public Sector getSector() { return sector; }
-    public void setSector(Sector sector) { this.sector = sector; }
+    public Sector getSector() {
+        return sector;
+    }
+
+    public void setSector(Sector sector) {
+        this.sector = sector;
+    }
+
+
+// ... otros atributos ...
+
+    @Column(columnDefinition = "boolean default true")
+    private Boolean activa = true; // Por defecto nace visible
+
+    // GETTER Y SETTER
+    public Boolean getActiva() {
+        return activa;
+    }
+
+    public void setActiva(Boolean activa) {
+        this.activa = activa;
+    }
 }

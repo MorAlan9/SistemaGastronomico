@@ -13,23 +13,27 @@
 <BorderPane prefHeight="600.0" prefWidth="900.0" style="-fx-background-color: transparent;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gastronomia.sistemaGastronomico.controller.RestauranteController">
 
     <top>
-        <HBox alignment="CENTER_LEFT" spacing="15.0" style="-fx-background-color: rgba(255,255,255,0.1); -fx-background-radius: 10;">
+        <HBox alignment="CENTER_LEFT" spacing="15.0" style="-fx-background-color: rgba(255,255,255,0.05); -fx-background-radius: 10;">
             <padding>
                 <Insets bottom="10.0" left="15.0" right="15.0" top="10.0" />
             </padding>
             <children>
-                <Label text="SECTORES:" textFill="#bdc3c7">
-                    <font><Font name="System Bold" size="14.0" /></font>
+                <Label text="ZONAS:" textFill="#bdc3c7">
+                    <font><Font name="System Bold" size="12.0" /></font>
                 </Label>
 
-                <HBox fx:id="contenedorSectores" alignment="CENTER_LEFT" spacing="10.0" HBox.hgrow="ALWAYS" />
+                <ScrollPane fitToHeight="true" hbarPolicy="NEVER" vbarPolicy="NEVER" style="-fx-background-color: transparent; -fx-background: transparent;" HBox.hgrow="ALWAYS">
+                    <content>
+                        <HBox fx:id="contenedorSectores" alignment="CENTER_LEFT" spacing="10.0" style="-fx-background-color: transparent;" />
+                    </content>
+                </ScrollPane>
 
                 <Separator orientation="VERTICAL" />
 
-                <Button mnemonicParsing="false" onAction="#nuevoSector" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="+ NUEVO SECTOR" />
+                <Button mnemonicParsing="false" onAction="#nuevoSector" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="+" />
             </children>
             <BorderPane.margin>
-                <Insets bottom="10.0" />
+                <Insets bottom="15.0" />
             </BorderPane.margin>
         </HBox>
     </top>
@@ -37,9 +41,13 @@
     <center>
         <ScrollPane fitToWidth="true" style="-fx-background: transparent; -fx-background-color: transparent;">
             <content>
-                <FlowPane fx:id="contenedorMesas" hgap="25.0" vgap="25.0" style="-fx-background-color: transparent;">
+                <FlowPane fx:id="contenedorMesas"
+                          alignment="TOP_CENTER"
+                          columnHalignment="CENTER"
+                          hgap="30.0" vgap="30.0"
+                          style="-fx-background-color: transparent;">
                     <padding>
-                        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                        <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
                     </padding>
                 </FlowPane>
             </content>

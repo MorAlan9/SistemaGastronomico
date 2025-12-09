@@ -15,4 +15,7 @@ public interface MesaRepository extends JpaRepository<Mesa, Long> {
 
     // Contar cuántas mesas hay en un sector (para el texto "5/10")
     long countBySector(Sector sector);
+
+    // Esto filtra automáticamente las mesas ocultas
+    List<Mesa> findBySectorAndActivaTrue(Sector sector);
 }

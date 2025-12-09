@@ -3,10 +3,8 @@ package gastronomia.sistemaGastronomico.controller;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
-import javafx.scene.Scene;
-import javafx.scene.control.Alert;
-import javafx.scene.layout.StackPane;
-import javafx.stage.Stage;
+import javafx.scene.control.Tab;
+import javafx.scene.control.TabPane;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
@@ -17,7 +15,13 @@ public class MenuPrincipalController {
 
     private final ApplicationContext context;
 
-    @FXML private StackPane zonaCentral; // El área cambiante del centro
+    @FXML private TabPane tabPanePrincipal;
+
+    // Inyectamos las pestañas que creamos en el FXML
+    @FXML private Tab tabRestaurante;
+    @FXML private Tab tabVentas;
+    @FXML private Tab tabProductos;
+    @FXML private Tab tabGastos;
 
     public MenuPrincipalController(ApplicationContext context) {
         this.context = context;
@@ -25,66 +29,28 @@ public class MenuPrincipalController {
 
     @FXML
     public void initialize() {
-        // Al iniciar, cargamos la vista del Restaurante (Sectores y Mesas)
-        mostrarRestaurante();
+        // Al arrancar, cargamos el contenido dentro de cada pestaña
+        cargarContenidoEnTab(tabRestaurante, "/Views/restaurante.fxml");
+        cargarContenidoEnTab(tabVentas, "/Views/ventas.fxml");
+        cargarContenidoEnTab(tabProductos, "/Views/admin_productos.fxml");
+
+        // Si aún no tienes gastos.fxml, comenta esta línea para que no de error
+        // cargarContenidoEnTab(tabGastos, "/Views/gastos.fxml");
     }
 
-    // ==========================================
-    // BARRA DE NAVEGACIÓN
-    // ==========================================
-
-    @FXML
-    public void mostrarRestaurante() {
-        // Ahora cargamos el FXML de restaurante (que tiene los sectores y el mapa)
-        cargarVistaEnCentro("/Views/restaurante.fxml");
-    }
-
-    @FXML
-    public void mostrarVentas() {
-        cargarVistaEnCentro("/Views/ventas.fxml");
-    }
-
-    @FXML
-    public void mostrarProductos() {
-        cargarVistaEnCentro("/Views/admin_productos.fxml");
-    }
-
-
-
-    // ==========================================
-    // BOTONES DE ACCIÓN RÁPIDA (Si tienes alguno en la barra superior)
-    // ==========================================
-
-    @FXML
-    public void abrirAdmin() {
-        // El botón de configuración abre los productos
-        mostrarProductos();
-    }
-
-    // ==========================================
-    // UTILIDADES
-    // ==========================================
-
-    private void cargarVistaEnCentro(String rutaFxml) {
+    private void cargarContenidoEnTab(Tab tab, String rutaFxml) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource(rutaFxml));
-            loader.setControllerFactory(context::getBean); // Inyección de dependencias de Spring
-            Parent vista = loader.load();
+            loader.setControllerFactory(context::getBean); // Clave para que funcione Spring
+            Parent contenido = loader.load();
 
-            zonaCentral.getChildren().clear();
-            zonaCentral.getChildren().add(vista);
+            // Metemos la pantalla dentro de la pestaña
+            tab.setContent(contenido);
 
         } catch (IOException e) {
             e.printStackTrace();
-            mostrarAlerta("Error de Navegación", "No se pudo cargar la pantalla: " + rutaFxml);
+            System.err.println("❌ Error al cargar pestaña: " + rutaFxml);
+            tab.setText(tab.getText() + " (Error)");
         }
-    }
-
-    private void mostrarAlerta(String titulo, String mensaje) {
-        Alert alert = new Alert(Alert.AlertType.ERROR);
-        alert.setTitle("Sistema");
-        alert.setHeaderText(titulo);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
     }
 }
