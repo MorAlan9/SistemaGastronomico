@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ScrollPane?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.FlowPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane prefHeight="600.0" prefWidth="900.0" style="-fx-background-color: transparent;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gastronomia.sistemaGastronomico.controller.RestauranteController">
+
+    <top>
+        <HBox alignment="CENTER_LEFT" spacing="15.0" style="-fx-background-color: rgba(255,255,255,0.1); -fx-background-radius: 10;">
+            <padding>
+                <Insets bottom="10.0" left="15.0" right="15.0" top="10.0" />
+            </padding>
+            <children>
+                <Label text="SECTORES:" textFill="#bdc3c7">
+                    <font><Font name="System Bold" size="14.0" /></font>
+                </Label>
+
+                <HBox fx:id="contenedorSectores" alignment="CENTER_LEFT" spacing="10.0" HBox.hgrow="ALWAYS" />
+
+                <Separator orientation="VERTICAL" />
+
+                <Button mnemonicParsing="false" onAction="#nuevoSector" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="+ NUEVO SECTOR" />
+            </children>
+            <BorderPane.margin>
+                <Insets bottom="10.0" />
+            </BorderPane.margin>
+        </HBox>
+    </top>
+
+    <center>
+        <ScrollPane fitToWidth="true" style="-fx-background: transparent; -fx-background-color: transparent;">
+            <content>
+                <FlowPane fx:id="contenedorMesas" hgap="25.0" vgap="25.0" style="-fx-background-color: transparent;">
+                    <padding>
+                        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                    </padding>
+                </FlowPane>
+            </content>
+        </ScrollPane>
+    </center>
+
+    <bottom>
+        <HBox alignment="CENTER_RIGHT" style="-fx-padding: 10;">
+            <children>
+                <Button mnemonicParsing="false" onAction="#nuevaMesaEnSectorActual" style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-cursor: hand;" text="+ AGREGAR MESA AQUÍ" />
+            </children>
+        </HBox>
+    </bottom>
+
+</BorderPane>

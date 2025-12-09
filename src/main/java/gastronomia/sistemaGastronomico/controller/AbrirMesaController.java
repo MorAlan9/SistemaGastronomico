@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.net.URL;
 
 @Component
 public class AbrirMesaController {
@@ -54,7 +55,9 @@ public class AbrirMesaController {
 
     public void setMesa(Mesa mesa) {
         this.mesaSeleccionada = mesa;
-        lblTituloMesa.setText("MESA " + mesa.getNumero());
+        if (lblTituloMesa != null) {
+            lblTituloMesa.setText("MESA " + mesa.getNumero());
+        }
     }
 
     /**
@@ -84,28 +87,44 @@ public class AbrirMesaController {
             pedidoRepo.save(nuevoPedido); // ¡GUARDADO! La mesa ahora figura ocupada
 
             // C. Cerrar esta ventanita pequeña
-            Stage stageActual = (Stage) lblTituloMesa.getScene().getWindow();
-            stageActual.close();
+            if (lblTituloMesa.getScene() != null) {
+                Stage stageActual = (Stage) lblTituloMesa.getScene().getWindow();
+                stageActual.close();
+            }
 
             // D. Abrir inmediatamente la pantalla grande de productos
             abrirPantallaPedido(mesaSeleccionada);
 
         } catch (Exception e) {
             e.printStackTrace();
-            mostrarAlerta("Error", "No se pudo abrir la mesa.");
+            mostrarAlerta("Error", "No se pudo abrir la mesa: " + e.getMessage());
         }
     }
 
-    // Método privado para saltar a la siguiente pantalla
+    // Método seguro para saltar a la siguiente pantalla
     private void abrirPantallaPedido(Mesa mesa) {
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/Views/pedido.fxml"));
+            // --- DIAGNÓSTICO DE RUTA ---
+            String rutaFXML = "/Views/pedido.fxml"; // Asegúrate que coincida con tu carpeta (Views con V mayúscula)
+            URL url = getClass().getResource(rutaFXML);
+
+            if (url == null) {
+                System.err.println("❌ ERROR CRÍTICO: No se encuentra el archivo FXML en: " + rutaFXML);
+                System.err.println("👉 Verifica si la carpeta es 'Views' o 'views' y si el archivo es 'pedido.fxml'");
+                mostrarAlerta("Error de Archivo", "No se encuentra la vista de pedidos (" + rutaFXML + ")");
+                return;
+            }
+            // ---------------------------
+
+            FXMLLoader loader = new FXMLLoader(url);
             loader.setControllerFactory(context::getBean);
             Parent root = loader.load();
 
             // Pasamos la mesa al siguiente controlador (TomaPedidoController)
             TomaPedidoController controller = loader.getController();
-            controller.setMesa(mesa);
+            if (controller != null) {
+                controller.setMesa(mesa);
+            }
 
             Stage stage = new Stage();
             stage.setTitle("Pedido - Mesa " + mesa.getNumero());
@@ -114,7 +133,8 @@ public class AbrirMesaController {
             stage.show();
 
         } catch (Exception e) {
-            e.printStackTrace();
+            e.printStackTrace(); // Esto imprimirá el error real en la consola negra de abajo
+            mostrarAlerta("Error Técnico", "Falló al abrir la pantalla de pedido.\nMira la consola para más detalles.");
         }
     }
 
