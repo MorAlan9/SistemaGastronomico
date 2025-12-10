@@ -16,10 +16,13 @@ public class Producto {
     @Column(name = "precio_actual")
     private BigDecimal precioActual;
 
-    // RELACIÓN NUEVA: Un producto pertenece a una Categoría
     @ManyToOne
     @JoinColumn(name = "id_categoria")
     private Categoria categoria;
+
+    // --- NUEVO CAMPO ---
+    @Column(name = "stock")
+    private Integer stock;
 
     public Producto() { }
 
@@ -27,8 +30,10 @@ public class Producto {
         this.nombre = nombre;
         this.precioActual = precioActual;
         this.categoria = categoria;
+        this.stock = 0; // Valor por defecto
     }
 
+    // ... (Tus Getters y Setters anteriores id, nombre, precio...) ...
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getNombre() { return nombre; }
@@ -38,10 +43,19 @@ public class Producto {
     public Categoria getCategoria() { return categoria; }
     public void setCategoria(Categoria categoria) { this.categoria = categoria; }
 
+    // --- NUEVOS GETTERS Y SETTERS PARA STOCK ---
+    public Integer getStock() {
+        return (stock != null) ? stock : 0; // Evita NullPointerException
+    }
+
+    public void setStock(Integer stock) {
+        this.stock = stock;
+    }
+
     @Override
     public String toString() {
-        // Validación por si la categoría viene null (seguridad)
         String nombreCat = (categoria != null) ? categoria.getNombre() : "Sin Categoría";
-        return nombre + " ($" + precioActual + ") [" + nombreCat + "]";
+        // Agregamos visualmente el stock al toString (opcional)
+        return nombre + " ($" + precioActual + ") [Stock: " + getStock() + "]";
     }
 }

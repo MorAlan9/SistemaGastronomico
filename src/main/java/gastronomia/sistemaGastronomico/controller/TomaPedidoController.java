@@ -52,17 +52,13 @@ public class TomaPedidoController {
         cargarProductos(productoRepo.findAll());
     }
 
-    // --- ACCIONES DE COBRO Y SALIDA ---
-
     @FXML
     public void accionVolver() {
-        // Solo cierra la ventana, la mesa queda ocupada (roja)
         cerrarVentana();
     }
 
     @FXML
     public void accionCobrar() {
-        // 1. Preguntar método de pago
         ChoiceDialog<String> dialogo = new ChoiceDialog<>("Efectivo", "Efectivo", "Tarjeta Débito", "Tarjeta Crédito", "QR / MP");
         dialogo.setTitle("Cobrar Mesa " + mesaActual.getNumero());
         dialogo.setHeaderText("Total a pagar: " + lblTotal.getText());
@@ -73,16 +69,29 @@ public class TomaPedidoController {
         if (resultado.isPresent()) {
             String formaPago = resultado.get();
 
-            // 2. Guardar el pago en el pedido
+            // 1. Guardar pago
             pedidoActual.setMetodoPago(formaPago);
             pedidoRepo.save(pedidoActual);
 
-            // 3. Cerrar mesa en el sistema (Service)
+            // 2. DESCONTAR STOCK (Lógica Segura)
+            List<DetallePedido> detalles = detalleRepo.findByPedido(pedidoActual);
+
+            for (DetallePedido det : detalles) {
+                // Buscamos la versión más fresca del producto en BD
+                Producto prodReal = productoRepo.findById(det.getProducto().getId()).orElse(null);
+
+                if (prodReal != null) {
+                    int nuevoStock = prodReal.getStock() - det.getCantidad();
+                    prodReal.setStock(nuevoStock);
+                    productoRepo.save(prodReal);
+                    System.out.println("Venta: Stock descontado a " + prodReal.getNombre() + ". Quedan: " + nuevoStock);
+                }
+            }
+
+            // 3. Cerrar mesa
             pedidoService.cerrarMesa(pedidoActual.getId());
 
-            mostrarAlerta("Cobro Exitoso", "Se registró el pago con: " + formaPago);
-
-            // 4. Salir
+            mostrarAlerta("Cobro Exitoso", "Pago registrado y Stock actualizado.");
             cerrarVentana();
         }
     }
@@ -92,16 +101,14 @@ public class TomaPedidoController {
         stage.close();
     }
 
-    // --- LÓGICA DE CARGA Y PRODUCTOS (Igual que antes) ---
-
     public void setMesa(Mesa mesa) {
         this.mesaActual = mesa;
         lblTituloMesa.setText("Mesa " + mesa.getNumero());
 
-        // Buscar pedido abierto
-        this.pedidoActual = pedidoRepo.findFirstByMesaAndEstado(mesa, "ABIERTO").orElse(null);
+        // AUTO-RELOAD: Recargamos los productos para ver el stock actualizado al entrar
+        cargarProductos(productoRepo.findAll());
 
-        // Si falló algo y no hay pedido, creamos uno de emergencia
+        this.pedidoActual = pedidoRepo.findFirstByMesaAndEstado(mesa, "ABIERTO").orElse(null);
         if (this.pedidoActual == null) crearNuevoPedidoEmergencia();
 
         actualizarVistaPedido();
@@ -115,6 +122,11 @@ public class TomaPedidoController {
     }
 
     private void agregarProductoAlPedido(Producto prod) {
+        if (prod.getStock() <= 0) {
+            mostrarAlerta("Sin Stock", "No queda stock de " + prod.getNombre());
+            return;
+        }
+
         if (pedidoActual == null) return;
         pedidoService.agregarProducto(pedidoActual.getId(), prod.getId(), 1);
         actualizarVistaPedido();
@@ -133,9 +145,17 @@ public class TomaPedidoController {
     private void cargarProductos(List<Producto> lista) {
         contenedorProductos.getChildren().clear();
         for (Producto prod : lista) {
-            Button btn = new Button(prod.getNombre() + "\n$" + prod.getPrecioActual());
+            String texto = prod.getNombre() + "\n$" + prod.getPrecioActual() + "\n(Stock: " + prod.getStock() + ")";
+            Button btn = new Button(texto);
             btn.setPrefSize(110, 80);
-            btn.setStyle("-fx-font-size: 11px; text-align: center;");
+
+            if (prod.getStock() <= 0) {
+                btn.setStyle("-fx-background-color: #ffcdd2; -fx-text-fill: red; -fx-font-size: 10px; text-align: center;");
+                btn.setDisable(true);
+            } else {
+                btn.setStyle("-fx-font-size: 11px; text-align: center;");
+            }
+
             btn.setOnAction(e -> agregarProductoAlPedido(prod));
             contenedorProductos.getChildren().add(btn);
         }
@@ -143,6 +163,13 @@ public class TomaPedidoController {
 
     private void generarBotonesFiltros() {
         contenedorFiltros.getChildren().clear();
+
+        // Botón Manual de Reload
+        Button btnReload = new Button("🔄");
+        btnReload.setStyle("-fx-background-color: #7f8c8d; -fx-text-fill: white; -fx-font-weight: bold;");
+        btnReload.setOnAction(e -> cargarProductos(productoRepo.findAll()));
+        contenedorFiltros.getChildren().add(btnReload);
+
         Button btnTodo = new Button("TODO");
         btnTodo.setOnAction(e -> cargarProductos(productoRepo.findAll()));
         contenedorFiltros.getChildren().add(btnTodo);

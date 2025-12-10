@@ -18,8 +18,14 @@
                     <Label text="Productos Actuales">
                         <font><Font name="System Bold" size="18.0" /></font>
                     </Label>
+
+                    <Button text="🔄 Actualizar Lista" onAction="#actualizarLista"
+                            style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand;"
+                            maxWidth="Infinity"/>
+
                     <ListView fx:id="listaProductos" VBox.vgrow="ALWAYS" />
-                    <Button text="Eliminar Seleccionado" onAction="#eliminarProducto" style="-fx-background-color: #e74c3c; -fx-text-fill: white;" maxWidth="Infinity"/>
+
+                    <Button text="Eliminar Seleccionado" onAction="#eliminarProducto" style="-fx-background-color: #e74c3c; -fx-text-fill: white; -fx-cursor: hand;" maxWidth="Infinity"/>
                 </VBox>
             </children>
         </AnchorPane>
@@ -37,10 +43,13 @@
                     <Label text="Precio ($):" />
                     <TextField fx:id="txtPrecio" promptText="Ej: 8500.50" />
 
+                    <Label text="Stock Inicial:" />
+                    <TextField fx:id="txtStock" promptText="Ej: 50" />
+
                     <Label text="Categoría:" />
                     <ComboBox fx:id="comboCategoria" maxWidth="Infinity" promptText="Seleccione..." />
 
-                    <Button text="GUARDAR PRODUCTO" onAction="#guardarProducto" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px;" maxWidth="Infinity" />
+                    <Button text="GUARDAR PRODUCTO" onAction="#guardarProducto" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-cursor: hand;" maxWidth="Infinity" />
 
                     <Label fx:id="lblInfo" textFill="#2980b9" />
                 </VBox>

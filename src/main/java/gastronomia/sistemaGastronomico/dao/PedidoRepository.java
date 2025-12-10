@@ -20,5 +20,7 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
     Optional<Pedido> findFirstByMesaAndEstado(Mesa mesa, String estado);
 
     List<Pedido>findByEstadoOrderByIdDesc(String estado);
+
+
 }
 
