@@ -9,6 +9,17 @@ import java.util.List;
 @Repository
 public interface ProductoRepository extends JpaRepository<Producto, Long> {
 
-    // Ahora buscamos por el OBJETO Categoria real
-    List<Producto> findByCategoria(Categoria categoria);
+    // Validar duplicados
+    boolean existsByNombreIgnoreCase(String nombre);
+
+    // --- FILTROS DE ACTIVOS (Para no mostrar los borrados) ---
+
+    // 1. Traer TODO lo activo (Para el botón "TODO" o recarga inicial)
+    List<Producto> findByActivoTrue();
+
+    // 2. Traer por Categoría solo activos (Para los botones de filtros)
+    List<Producto> findByCategoriaAndActivoTrue(Categoria categoria);
+
+    // NOTA: El método findAll() sigue existiendo, pero trae borrados también.
+    // Solo lo usaremos en Admin si quisiéramos ver historial, pero en Pedidos usaremos estos.
 }

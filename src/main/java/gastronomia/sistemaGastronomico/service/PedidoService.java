@@ -10,16 +10,15 @@ import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 
 import java.math.BigDecimal;
+import java.util.Optional;
 
-@Service // <--- ¡Esto es clave! Le dice a Spring "Este es el Chef"
+@Service
 public class PedidoService {
 
-    // 1. Llamamos a los ayudantes (Repositorios)
     private final PedidoRepository pedidoRepo;
     private final ProductoRepository productoRepo;
     private final DetallePedidoRepository detalleRepo;
 
-    // 2. Constructor: Spring nos inyecta los repositorios automáticamente
     public PedidoService(PedidoRepository pedidoRepo,
                          ProductoRepository productoRepo,
                          DetallePedidoRepository detalleRepo) {
@@ -29,77 +28,82 @@ public class PedidoService {
     }
 
     /**
-     * Lógica para agregar un plato y QUE SE SUME SOLO AL TOTAL
+     * AGREGAR PRODUCTO (INTELIGENTE)
+     * Si el producto ya existe en la mesa, suma la cantidad al renglón existente.
+     * Si no existe, crea uno nuevo.
      */
-    @Transactional // Si falla algo, no guarda nada (seguridad)
+    @Transactional
     public void agregarProducto(Long idPedido, Long idProducto, Integer cantidad) {
 
-        // A. Buscamos el Pedido y el Producto en la Base de Datos
+        // 1. Buscamos Pedido y Producto
         Pedido pedido = pedidoRepo.findById(idPedido)
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
 
         Producto producto = productoRepo.findById(idProducto)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
 
-        // B. Creamos el Detalle (El renglón de la comanda)
-        DetallePedido detalle = new DetallePedido();
-        detalle.setPedido(pedido);
-        detalle.setProducto(producto);
-        detalle.setCantidad(cantidad);
-        detalle.setPrecioUnitario(producto.getPrecioActual()); // Congelamos precio actual
+        // 2. ¿Ya existe este producto en este pedido?
+        Optional<DetallePedido> existente = detalleRepo.findByPedidoAndProducto(pedido, producto);
 
-        // Guardamos el detalle
-        detalleRepo.save(detalle);
+        if (existente.isPresent()) {
+            // CASO A: YA EXISTE -> Solo sumamos la cantidad
+            DetallePedido detalle = existente.get();
+            detalle.setCantidad(detalle.getCantidad() + cantidad);
+            detalleRepo.save(detalle);
+        } else {
+            // CASO B: NO EXISTE -> Creamos un renglón nuevo
+            DetallePedido nuevo = new DetallePedido(pedido, producto, cantidad, producto.getPrecioActual());
+            detalleRepo.save(nuevo);
+        }
 
-        // C. LA MAGIA: Calculamos el subtotal y sumamos al pedido
-        // Subtotal = Precio * Cantidad
+        // 3. Actualizar el TOTAL ($) del Pedido
         BigDecimal subtotal = producto.getPrecioActual().multiply(new BigDecimal(cantidad));
+        BigDecimal nuevoTotal = pedido.getTotal().add(subtotal);
+        pedido.setTotal(nuevoTotal);
 
-        // Total Nuevo = Total Viejo + Subtotal
-        BigDecimal totalActualizado = pedido.getTotal().add(subtotal);
-        pedido.setTotal(totalActualizado);
-
-        // D. Guardamos el Pedido actualizado con el nuevo precio
         pedidoRepo.save(pedido);
-
-        System.out.println("👨‍🍳 SERVICE: Se agregaron " + cantidad + " " + producto.getNombre() +
-                ". Nuevo total de la mesa: $" + totalActualizado);
-
-
+        System.out.println("➕ Producto agregado/sumado. Nuevo total: $" + nuevoTotal);
     }
 
     /**
-     * MÉTODO 2: ELIMINAR PLATO (Corrección de error)
-     * Borra el item y descuenta la plata del total.
+     * QUITAR PRODUCTO (RESTAR DE A UNO)
+     * Resta 1 a la cantidad. Si queda en 0, elimina el renglón.
      */
     @Transactional
-    public void eliminarPlato(Long idDetalle) {
-        // 1. Buscamos el detalle a borrar
+    public void quitarProducto(Long idDetalle) {
+        // 1. Buscamos el detalle
         DetallePedido detalle = detalleRepo.findById(idDetalle)
                 .orElseThrow(() -> new RuntimeException("El detalle no existe"));
 
-        // 2. Recuperamos el pedido padre para descontar la plata
         Pedido pedido = detalle.getPedido();
+        BigDecimal precioUnitario = detalle.getPrecioUnitario();
 
-        // 3. Calculamos cuánto hay que restar (Precio * Cantidad)
-        BigDecimal montoARestar = detalle.getPrecioUnitario()
-                .multiply(new BigDecimal(detalle.getCantidad()));
+        // 2. Restamos 1 a la cantidad actual
+        int nuevaCantidad = detalle.getCantidad() - 1;
 
-        // 4. Actualizamos el total del pedido (Total Viejo - Monto a Restar)
-        BigDecimal nuevoTotal = pedido.getTotal().subtract(montoARestar);
+        if (nuevaCantidad > 0) {
+            // Si todavía quedan (ej: bajó de 3 a 2), actualizamos
+            detalle.setCantidad(nuevaCantidad);
+            detalleRepo.save(detalle);
+        } else {
+            // Si llegó a 0, borramos el renglón de la base de datos
+            detalleRepo.delete(detalle);
+        }
+
+        // 3. Descontamos el precio de UNA unidad al total del pedido
+        BigDecimal nuevoTotal = pedido.getTotal().subtract(precioUnitario);
+        // Evitamos totales negativos por seguridad
+        if (nuevoTotal.compareTo(BigDecimal.ZERO) < 0) nuevoTotal = BigDecimal.ZERO;
+
         pedido.setTotal(nuevoTotal);
+        pedidoRepo.save(pedido);
 
-        // 5. Borramos el detalle y guardamos el pedido corregido
-        detalleRepo.delete(detalle); // Borra de la BDD
-        pedidoRepo.save(pedido);     // Actualiza el total
-
-        System.out.println("🗑️ SERVICE: Se eliminó " + detalle.getProducto().getNombre() +
-                ". Se descontaron: $" + montoARestar);
+        System.out.println("➖ Producto restado. Nuevo total: $" + nuevoTotal);
     }
 
     /**
-     * MÉTODO 3: CERRAR MESA (Facturar)
-     * Cambia el estado para liberar la mesa.
+     * CERRAR MESA
+     * Finaliza el pedido cambiándolo a estado 'CERRADO'.
      */
     @Transactional
     public void cerrarMesa(Long idPedido) {
@@ -113,6 +117,6 @@ public class PedidoService {
         pedido.setEstado("CERRADO");
         pedidoRepo.save(pedido);
 
-        System.out.println("✅ SERVICE: Mesa cerrada. Total final facturado: $" + pedido.getTotal());
+        System.out.println("✅ Mesa cerrada correctamente.");
     }
 }
