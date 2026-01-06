@@ -5,6 +5,7 @@ import gastronomia.sistemaGastronomico.dao.PedidoRepository;
 import gastronomia.sistemaGastronomico.model.Mesa;
 import gastronomia.sistemaGastronomico.model.Mozo;
 import gastronomia.sistemaGastronomico.model.Pedido;
+// SIN IMPORTS DE ALERTAHELPER
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -15,17 +16,17 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.net.URL;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.net.URL;
 
 @Component
-public class AbrirMesaController {
+public class AbrirMesaController extends BaseController { // <--- 1. HERENCIA APLICADA
 
     private final MozoRepository mozoRepo;
     private final PedidoRepository pedidoRepo;
-    private final ApplicationContext context; // Necesario para abrir la siguiente ventana
-
+    private final ApplicationContext context;
+    private static Mozo ultimoMozoSeleccionado = null;
     private Mesa mesaSeleccionada;
 
     @FXML private Label lblTituloMesa;
@@ -41,108 +42,86 @@ public class AbrirMesaController {
 
     @FXML
     public void initialize() {
-        // 1. Configurar el contador de personas (Min 1, Max 20)
-        spinnerPersonas.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 20, 1));
-
-        // 2. Cargar lista de camareros
+        spinnerPersonas.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 50, 2));
         comboMozos.getItems().setAll(mozoRepo.findAll());
-
-        // Seleccionar el primero por defecto para agilizar
-        if (!comboMozos.getItems().isEmpty()) {
+        if (ultimoMozoSeleccionado != null && comboMozos.getItems().contains(ultimoMozoSeleccionado)) {
+            comboMozos.getSelectionModel().select(ultimoMozoSeleccionado);
+        } else if (!comboMozos.getItems().isEmpty()) {
             comboMozos.getSelectionModel().selectFirst();
         }
     }
 
     public void setMesa(Mesa mesa) {
         this.mesaSeleccionada = mesa;
-        if (lblTituloMesa != null) {
-            lblTituloMesa.setText("MESA " + mesa.getNumero());
-        }
+        if (lblTituloMesa != null) lblTituloMesa.setText("MESA " + mesa.getNumero());
     }
 
-    /**
-     * ACCIÓN DEL BOTÓN "ABRIR MESA"
-     */
+    @FXML public void set1Persona() { spinnerPersonas.getValueFactory().setValue(1); }
+    @FXML public void set2Personas() { spinnerPersonas.getValueFactory().setValue(2); }
+    @FXML public void set4Personas() { spinnerPersonas.getValueFactory().setValue(4); }
+    @FXML public void set6Personas() { spinnerPersonas.getValueFactory().setValue(6); }
+
     @FXML
     public void confirmarApertura() {
         try {
-            // A. Validar datos
             Mozo mozo = comboMozos.getValue();
             if (mozo == null) {
-                mostrarAlerta("Faltan datos", "Por favor seleccione un camarero.");
+                advertencia("Atención", "Seleccione un camarero.");
                 return;
             }
 
-            // B. Crear el Pedido en la Base de Datos
-            Pedido nuevoPedido = new Pedido();
-            nuevoPedido.setMesa(mesaSeleccionada);
-            nuevoPedido.setMozo(mozo);
-            nuevoPedido.setComensales(spinnerPersonas.getValue());
-            nuevoPedido.setComentarios(txtComentario.getText());
-            nuevoPedido.setFecha(LocalDate.now());
-            nuevoPedido.setHora(LocalTime.now());
-            nuevoPedido.setEstado("ABIERTO");
-            nuevoPedido.setTotal(BigDecimal.ZERO);
+            ultimoMozoSeleccionado = mozo;
 
-            pedidoRepo.save(nuevoPedido); // ¡GUARDADO! La mesa ahora figura ocupada
+            Pedido pedido = new Pedido();
+            pedido.setMesa(mesaSeleccionada);
+            pedido.setMozo(mozo);
+            pedido.setComensales(spinnerPersonas.getValue());
+            pedido.setComentarios(txtComentario.getText());
+            pedido.setFecha(LocalDate.now());
+            pedido.setHora(LocalTime.now());
+            pedido.setEstado("ABIERTO");
+            pedido.setTotal(BigDecimal.ZERO);
 
-            // C. Cerrar esta ventanita pequeña
+            pedidoRepo.save(pedido);
+
             if (lblTituloMesa.getScene() != null) {
-                Stage stageActual = (Stage) lblTituloMesa.getScene().getWindow();
-                stageActual.close();
+                ((Stage) lblTituloMesa.getScene().getWindow()).close();
             }
 
-            // D. Abrir inmediatamente la pantalla grande de productos
             abrirPantallaPedido(mesaSeleccionada);
 
         } catch (Exception e) {
             e.printStackTrace();
-            mostrarAlerta("Error", "No se pudo abrir la mesa: " + e.getMessage());
+            error("Error", "Error al abrir mesa: " + e.getMessage());
         }
     }
 
-    // Método seguro para saltar a la siguiente pantalla
     private void abrirPantallaPedido(Mesa mesa) {
         try {
-            // --- DIAGNÓSTICO DE RUTA ---
-            String rutaFXML = "/Views/pedido.fxml"; // Asegúrate que coincida con tu carpeta (Views con V mayúscula)
-            URL url = getClass().getResource(rutaFXML);
-
-            if (url == null) {
-                System.err.println("❌ ERROR CRÍTICO: No se encuentra el archivo FXML en: " + rutaFXML);
-                System.err.println("👉 Verifica si la carpeta es 'Views' o 'views' y si el archivo es 'pedido.fxml'");
-                mostrarAlerta("Error de Archivo", "No se encuentra la vista de pedidos (" + rutaFXML + ")");
-                return;
-            }
-            // ---------------------------
+            URL url = getClass().getResource("/Views/pedido.fxml");
+            if (url == null) throw new RuntimeException("Falta /Views/pedido.fxml");
 
             FXMLLoader loader = new FXMLLoader(url);
             loader.setControllerFactory(context::getBean);
             Parent root = loader.load();
 
-            // Pasamos la mesa al siguiente controlador (TomaPedidoController)
             TomaPedidoController controller = loader.getController();
-            if (controller != null) {
-                controller.setMesa(mesa);
-            }
+            if (controller != null) controller.setMesa(mesa);
 
             Stage stage = new Stage();
             stage.setTitle("Pedido - Mesa " + mesa.getNumero());
-            stage.setScene(new Scene(root));
+
+            Scene scene = new Scene(root);
+            try { scene.getStylesheets().add(getClass().getResource("/estilos.css").toExternalForm()); }
+            catch (Exception ignored) {}
+
+            stage.setScene(scene);
             stage.setMaximized(true);
             stage.show();
 
         } catch (Exception e) {
-            e.printStackTrace(); // Esto imprimirá el error real en la consola negra de abajo
-            mostrarAlerta("Error Técnico", "Falló al abrir la pantalla de pedido.\nMira la consola para más detalles.");
+            e.printStackTrace();
+            error("Error", "No se pudo cargar la vista de pedidos.");
         }
-    }
-
-    private void mostrarAlerta(String titulo, String mensaje) {
-        Alert alert = new Alert(Alert.AlertType.WARNING);
-        alert.setTitle("Atención");
-        alert.setHeaderText(titulo);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
     }
 }

@@ -6,8 +6,8 @@ import gastronomia.sistemaGastronomico.dao.SectorRepository;
 import gastronomia.sistemaGastronomico.model.Mesa;
 import gastronomia.sistemaGastronomico.model.Pedido;
 import gastronomia.sistemaGastronomico.model.Sector;
-import gastronomia.sistemaGastronomico.utils.AlertaHelper; // Importamos tus Utils
-import gastronomia.sistemaGastronomico.utils.Toast;       // Importamos tus Utils
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -21,15 +21,17 @@ import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
 import java.net.URL;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
 @Component
-public class RestauranteController {
+public class RestauranteController extends BaseController {
 
     private final MesaRepository mesaRepo;
     private final PedidoRepository pedidoRepo;
@@ -54,6 +56,16 @@ public class RestauranteController {
     public void initialize() {
         cargarSectores();
         configurarAtajoTeclado();
+
+        // --- AUTO-REFRESCO (RELOJ EN VIVO) ---
+        // Actualiza el mapa cada 60 segundos para que avancen los minutos de las mesas
+        Timeline timeline = new Timeline(
+                new KeyFrame(Duration.seconds(60), e -> {
+                    if (sectorActual != null) cargarMesasDelSector(sectorActual);
+                })
+        );
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        timeline.play();
     }
 
     private void configurarAtajoTeclado() {
@@ -74,19 +86,17 @@ public class RestauranteController {
     public void buscarMesaRapida() {
         String texto = txtBuscarMesa.getText().trim();
         if (texto.isEmpty()) return;
-
         try {
             int numero = Integer.parseInt(texto);
             Optional<Mesa> mesaOpt = mesaRepo.findFirstByNumeroAndActivaTrue(numero);
-
             if (mesaOpt.isPresent()) {
                 gestionarClicMesa(mesaOpt.get());
                 txtBuscarMesa.clear();
             } else {
-                AlertaHelper.mostrarAlerta("No encontrada", "La Mesa N° " + numero + " no existe o no está activa.", Alert.AlertType.WARNING);
+                advertencia("No encontrada", "La Mesa N° " + numero + " no existe o no está activa.");
             }
         } catch (NumberFormatException e) {
-            AlertaHelper.mostrarAlerta("Error", "Ingrese un número válido.", Alert.AlertType.ERROR);
+            error("Error", "Ingrese un número válido.");
         }
     }
 
@@ -94,11 +104,9 @@ public class RestauranteController {
         contenedorSectores.getChildren().clear();
         List<Sector> sectores = sectorRepo.findAll();
 
-        if (sectores.isEmpty()) {
-            sectorActual = null;
-        } else if (sectorActual == null) {
-            sectorActual = sectores.get(0);
-        } else {
+        if (sectores.isEmpty()) sectorActual = null;
+        else if (sectorActual == null) sectorActual = sectores.get(0);
+        else {
             boolean existe = sectores.stream().anyMatch(s -> s.getId().equals(sectorActual.getId()));
             if (!existe) sectorActual = sectores.get(0);
         }
@@ -106,22 +114,13 @@ public class RestauranteController {
         for (Sector sector : sectores) {
             List<Mesa> mesasDelSector = mesaRepo.findBySectorAndActivaTrue(sector);
             long total = mesasDelSector.size();
-            long ocupadas = mesasDelSector.stream()
-                    .filter(m -> pedidoRepo.findFirstByMesaAndEstado(m, "ABIERTO").isPresent())
-                    .count();
+            long ocupadas = mesasDelSector.stream().filter(m -> pedidoRepo.findFirstByMesaAndEstado(m, "ABIERTO").isPresent()).count();
 
             Button btn = new Button(sector.getNombre() + "\n(" + ocupadas + "/" + total + ")");
-
-            // UX: Estilos de botones de sector
             btn.getStyleClass().add("button-sector");
-            if (sector != null && sectorActual != null && sector.getId().equals(sectorActual.getId())) {
-                btn.getStyleClass().add("button-sector-activo");
-            }
+            if (sector.equals(sectorActual)) btn.getStyleClass().add("button-sector-activo");
 
-            btn.setOnAction(e -> {
-                this.sectorActual = sector;
-                cargarSectores();
-            });
+            btn.setOnAction(e -> { this.sectorActual = sector; cargarSectores(); });
             contenedorSectores.getChildren().add(btn);
         }
 
@@ -136,38 +135,37 @@ public class RestauranteController {
     private void cargarMesasDelSector(Sector sector) {
         contenedorMesas.getChildren().clear();
         if (sector == null) return;
-
         List<Mesa> mesas = mesaRepo.findBySectorAndActivaTrue(sector);
 
         for (Mesa mesa : mesas) {
             Button btn = new Button();
             btn.setPrefSize(160, 140);
-
-            // UX: Limpiamos y asignamos clase base
             btn.getStyleClass().clear();
             btn.getStyleClass().add("mesa-btn");
 
             Optional<Pedido> pedidoAbierto = pedidoRepo.findFirstByMesaAndEstado(mesa, "ABIERTO");
 
             if (pedidoAbierto.isPresent()) {
-                // UX: Mesa Ocupada (ROJA)
                 btn.getStyleClass().add("mesa-ocupada");
                 int gente = pedidoAbierto.get().getComensales() != null ? pedidoAbierto.get().getComensales() : 0;
-                btn.setGraphic(crearGraficoMesa(mesa.getNumero(), "Ocupada ($" + pedidoAbierto.get().getTotal() + ")", gente));
+
+                // --- PASAMOS EL PEDIDO PARA CALCULAR EL TIEMPO ---
+                btn.setGraphic(crearGraficoMesa(mesa.getNumero(), "Ocupada ($" + pedidoAbierto.get().getTotal() + ")", gente, pedidoAbierto.get()));
+
             } else {
-                // UX: Mesa Libre (VERDE)
                 btn.getStyleClass().add("mesa-libre");
-                btn.setGraphic(crearGraficoMesa(mesa.getNumero(), "Disponible", 0));
+                // --- PASAMOS NULL PORQUE NO HAY PEDIDO ---
+                btn.setGraphic(crearGraficoMesa(mesa.getNumero(), "Disponible", 0, null));
             }
 
             btn.setOnAction(e -> gestionarClicMesa(mesa));
-            configurarMenuContextual(btn, mesa); // Aquí se agrega la opción "Mover"
-
+            configurarMenuContextual(btn, mesa);
             contenedorMesas.getChildren().add(btn);
         }
     }
 
-    private VBox crearGraficoMesa(int numero, String estado, int personas) {
+    // --- MÉTODO ACTUALIZADO CON LÓGICA DE TIEMPO ---
+    private VBox crearGraficoMesa(int numero, String estado, int personas, Pedido pedido) {
         Label lblNum = new Label(String.valueOf(numero));
         lblNum.getStyleClass().add("mesa-numero");
 
@@ -176,30 +174,60 @@ public class RestauranteController {
 
         VBox vBox = new VBox(lblNum, lblEstado);
         vBox.setAlignment(javafx.geometry.Pos.CENTER);
-        vBox.setSpacing(5);
+        vBox.setSpacing(2);
 
+        // 1. Badge de Personas
         if (personas > 0) {
             Label lblPers = new Label("👥 " + personas);
             lblPers.getStyleClass().add("mesa-badge");
             vBox.getChildren().add(lblPers);
         }
+
+        // 2. TEMPORIZADOR DE OCUPACIÓN
+        if (pedido != null) {
+            LocalDateTime fechaInicio = LocalDateTime.of(pedido.getFecha(), pedido.getHora());
+            LocalDateTime ahora = LocalDateTime.now();
+
+            java.time.Duration duracion = java.time.Duration.between(fechaInicio, ahora);
+            long minutosTotales = duracion.toMinutes();
+            long horas = minutosTotales / 60;
+            long minutos = minutosTotales % 60;
+
+            String tiempoTexto = String.format("🕒 %d:%02dh", horas, minutos);
+            Label lblTiempo = new Label(tiempoTexto);
+            lblTiempo.getStyleClass().add("mesa-tiempo");
+
+            // Lógica de colores según demora
+            if (minutosTotales > 120) {
+                // > 2 horas: Rojo (Crítico)
+                lblTiempo.setStyle("-fx-text-fill: #ffcccc; -fx-font-weight: bold;");
+            } else if (minutosTotales > 60) {
+                // > 1 hora: Amarillo (Atención)
+                lblTiempo.setStyle("-fx-text-fill: #fff3cd; -fx-font-weight: bold;");
+            } else {
+                // Normal: Blanco suave
+                lblTiempo.setStyle("-fx-text-fill: rgba(255,255,255,0.8);");
+            }
+
+            vBox.getChildren().add(lblTiempo);
+        }
+
         return vBox;
     }
 
     private void gestionarClicMesa(Mesa mesa) {
         Optional<Pedido> pedidoAbierto = pedidoRepo.findFirstByMesaAndEstado(mesa, "ABIERTO");
-        if (pedidoAbierto.isPresent()) abrirPantalla(mesa, "/Views/pedido.fxml", true); // Maximizada
-        else abrirPantalla(mesa, "/Views/AbrirMesa.fxml", false); // Ventana chica
+        if (pedidoAbierto.isPresent()) abrirPantalla(mesa, "/Views/pedido.fxml", true);
+        else abrirPantalla(mesa, "/Views/AbrirMesa.fxml", false);
     }
 
     private void abrirPantalla(Mesa mesa, String rutaFxml, boolean maximizado) {
         try {
             URL url = getClass().getResource(rutaFxml);
             if (url == null) {
-                AlertaHelper.mostrarAlerta("Error", "No encuentro: " + rutaFxml, Alert.AlertType.ERROR);
+                error("Error", "No encuentro la vista: " + rutaFxml);
                 return;
             }
-
             FXMLLoader loader = new FXMLLoader(url);
             loader.setControllerFactory(context::getBean);
             Parent root = loader.load();
@@ -211,44 +239,37 @@ public class RestauranteController {
             Stage stage = new Stage();
             stage.setTitle("Mesa " + mesa.getNumero());
 
-            // UX: Inyectar CSS global al nuevo Stage
             Scene scene = new Scene(root);
-            try {
-                scene.getStylesheets().add(getClass().getResource("/estilos.css").toExternalForm());
-            } catch (Exception e) { System.err.println("No se pudo cargar estilos.css para el stage"); }
+            try { scene.getStylesheets().add(getClass().getResource("/estilos.css").toExternalForm()); }
+            catch (Exception ignored) {}
 
             stage.setScene(scene);
 
             if (maximizado) {
                 stage.setMaximized(true);
             } else {
-                stage.initModality(Modality.APPLICATION_MODAL); // Bloquea la ventana de atrás
+                stage.initModality(Modality.APPLICATION_MODAL);
                 stage.setResizable(false);
             }
-
             stage.setOnHidden(e -> cargarSectores());
             stage.show();
 
         } catch (Exception e) {
             e.printStackTrace();
-            AlertaHelper.mostrarAlerta("Error", e.getMessage(), Alert.AlertType.ERROR);
+            error("Error de Sistema", e.getMessage());
         }
     }
 
-    // --- NUEVA FUNCIONALIDAD: MENÚ CONTEXTUAL ---
     private void configurarMenuContextual(Button btn, Mesa mesa) {
         ContextMenu contextMenu = new ContextMenu();
 
-        // OPCIÓN 1: MOVER MESA (Nueva)
         MenuItem itemMover = new MenuItem("↔ Mover Mesa");
-        itemMover.setStyle("-fx-font-weight: bold;"); // Resaltar
+        itemMover.setStyle("-fx-font-weight: bold;");
         itemMover.setOnAction(e -> moverMesa(mesa));
 
-        // OPCIÓN 2: EDITAR
         MenuItem itemEditar = new MenuItem("✏️ Editar Mesa");
         itemEditar.setOnAction(e -> editarMesa(mesa));
 
-        // OPCIÓN 3: ELIMINAR
         MenuItem itemEliminar = new MenuItem("🗑️ Eliminar Mesa");
         itemEliminar.setStyle("-fx-text-fill: red;");
         itemEliminar.setOnAction(e -> eliminarMesa(mesa));
@@ -257,55 +278,46 @@ public class RestauranteController {
         btn.setContextMenu(contextMenu);
     }
 
-    // --- NUEVA LÓGICA: MOVER MESA ---
     private void moverMesa(Mesa mesaOrigen) {
-        // 1. Validar que haya qué mover
         Optional<Pedido> pedidoOrigenOpt = pedidoRepo.findFirstByMesaAndEstado(mesaOrigen, "ABIERTO");
         if (pedidoOrigenOpt.isEmpty()) {
-            AlertaHelper.mostrarAlerta("Aviso", "Esta mesa está libre, no hay pedidos para mover.", Alert.AlertType.INFORMATION);
+            info("Mesa Libre", "Esta mesa está libre, no hay nada que mover.");
             return;
         }
 
-        // 2. Pedir destino
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Mover Mesa");
         dialog.setHeaderText("Mover Mesa " + mesaOrigen.getNumero() + " a...");
         dialog.setContentText("Número de mesa destino:");
-        AlertaHelper.estilizarDialogo(dialog); // Estilo lindo
+        estilizar(dialog);
 
         dialog.showAndWait().ifPresent(texto -> {
             try {
                 int numDestino = Integer.parseInt(texto);
-
-                // 3. Buscar mesa destino
                 Optional<Mesa> mesaDestinoOpt = mesaRepo.findFirstByNumeroAndActivaTrue(numDestino);
 
                 if (mesaDestinoOpt.isEmpty()) {
-                    AlertaHelper.mostrarAlerta("Error", "La mesa " + numDestino + " no existe.", Alert.AlertType.ERROR);
+                    error("Error", "La mesa " + numDestino + " no existe.");
                     return;
                 }
 
                 Mesa mesaDestino = mesaDestinoOpt.get();
-
-                // 4. Validar que destino esté libre
                 if (pedidoRepo.findFirstByMesaAndEstado(mesaDestino, "ABIERTO").isPresent()) {
-                    AlertaHelper.mostrarAlerta("Ocupada", "La mesa " + numDestino + " ya está ocupada.", Alert.AlertType.WARNING);
+                    advertencia("Ocupada", "La mesa " + numDestino + " ya está ocupada.");
                     return;
                 }
 
-                // 5. CAMBIAR DE MESA (Transferencia)
                 Pedido pedido = pedidoOrigenOpt.get();
                 pedido.setMesa(mesaDestino);
                 pedidoRepo.save(pedido);
 
-                // 6. Feedback visual
-                Toast.mostrar("✅ Mesa traslada a la " + numDestino, (Stage) contenedorMesas.getScene().getWindow());
-                cargarSectores(); // Refrescar
+                toast("✅ Mesa trasladada a la " + numDestino, contenedorMesas);
+                cargarSectores();
 
             } catch (NumberFormatException e) {
-                AlertaHelper.mostrarAlerta("Error", "Ingrese un número válido.", Alert.AlertType.ERROR);
+                error("Error", "Ingrese un número válido.");
             } catch (Exception e) {
-                AlertaHelper.mostrarAlerta("Error", "No se pudo mover: " + e.getMessage(), Alert.AlertType.ERROR);
+                error("Error Crítico", e.getMessage());
             }
         });
     }
@@ -313,7 +325,7 @@ public class RestauranteController {
     private void editarMesa(Mesa mesa) {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.setTitle("Editar Mesa " + mesa.getNumero());
-        AlertaHelper.estilizarDialogo(dialog); // Estilo
+        estilizar(dialog);
 
         TextField txtNumero = new TextField(String.valueOf(mesa.getNumero()));
         TextField txtCapacidad = new TextField(String.valueOf(mesa.getCapacidad()));
@@ -330,22 +342,19 @@ public class RestauranteController {
                 mesa.setCapacidad(Integer.parseInt(txtCapacidad.getText()));
                 mesaRepo.save(mesa);
                 cargarSectores();
-            } catch (Exception e) {
-                AlertaHelper.mostrarAlerta("Error", "Datos inválidos", Alert.AlertType.ERROR);
-            }
+            } catch (Exception e) { error("Datos Inválidos", "Revise los datos."); }
         }
     }
 
     private void eliminarMesa(Mesa mesa) {
-        Optional<Pedido> pedidoAbierto = pedidoRepo.findFirstByMesaAndEstado(mesa, "ABIERTO");
-        if (pedidoAbierto.isPresent()) {
-            AlertaHelper.mostrarAlerta("Acción denegada", "La mesa está ocupada.", Alert.AlertType.WARNING);
+        if (pedidoRepo.findFirstByMesaAndEstado(mesa, "ABIERTO").isPresent()) {
+            advertencia("No se puede eliminar", "La mesa está ocupada.");
             return;
         }
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Eliminar Mesa");
         alert.setHeaderText("¿Quitar Mesa " + mesa.getNumero() + "?");
-        AlertaHelper.estilizarDialogo(alert); // Estilo
+        estilizar(alert);
 
         if (alert.showAndWait().orElse(ButtonType.CANCEL) == ButtonType.OK) {
             mesa.setActiva(false);
@@ -356,7 +365,7 @@ public class RestauranteController {
 
     @FXML public void nuevaMesaEnSectorActual() {
         if (sectorActual == null) return;
-        int numero = (int) (mesaRepo.count() + 1); // Lógica simple para evitar ID duplicado (mejorable)
+        int numero = (int) (mesaRepo.count() + 1);
         Mesa nueva = new Mesa(numero, 4);
         nueva.setSector(sectorActual);
         nueva.setActiva(true);
@@ -367,8 +376,8 @@ public class RestauranteController {
     @FXML public void nuevoSector() {
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Nuevo Sector");
-        dialog.setHeaderText("Nombre:");
-        AlertaHelper.estilizarDialogo(dialog); // Estilo
+        dialog.setHeaderText("Nombre del sector:");
+        estilizar(dialog);
 
         dialog.showAndWait().ifPresent(nombre -> {
             if (!nombre.trim().isEmpty()) { sectorRepo.save(new Sector(nombre)); cargarSectores(); }

@@ -153,3 +153,11 @@
     -fx-background-color: #2563EB; /* Azul más oscuro */
     -fx-translate-y: -2;
 }
+
+/* ==================== TEMPORIZADOR ==================== */
+.mesa-tiempo {
+    -fx-font-size: 11px;
+    -fx-font-family: "Consolas", "Monospaced", "Courier New", sans-serif; /* Fuente monoespaciada */
+    -fx-padding: 2 0 0 0;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 2, 0, 0, 1); /* Sombra para leer mejor */
+}
