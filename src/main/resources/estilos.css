@@ -1,62 +1,155 @@
+/* =============================================================================
+   1. CONFIGURACIÓN GENERAL Y FUENTES
+   ============================================================================= */
+.root {
+    /* Opción A: Fondo Degradado Sutil (Limpio y Profesional) */
+    -fx-background-color: linear-gradient(to bottom, #F3F4F6, #E5E7EB);
+    -fx-font-family: 'Segoe UI', sans-serif; /* Fuente moderna por defecto en Windows */
+}
 
-
-/* 1. BARRA DE NAVEGACIÓN (Efecto Vidrio) */
-.glass-bar {
-    -fx-background-color: rgba(20, 20, 20, 0.85); /* Negro casi transparente */
-    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.5), 10, 0, 0, 5);
+/* =============================================================================
+   2. BARRA SUPERIOR (ZONAS Y BUSCADOR)
+   ============================================================================= */
+.top-bar {
+    -fx-background-color: white;
+    -fx-background-radius: 16;
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.05), 10, 0, 0, 4);
     -fx-padding: 15;
 }
 
-/* 2. BOTONES DEL MENÚ SUPERIOR */
-.nav-btn {
-    -fx-background-color: transparent;
-    -fx-text-fill: #ecf0f1;
-    -fx-font-size: 14px;
+/* Etiquetas de Título (ZONAS, IR A MESA) */
+.label-titulo {
+    -fx-text-fill: #6B7280; /* Gris medio */
     -fx-font-weight: bold;
-    -fx-border-color: rgba(255,255,255,0.3);
-    -fx-border-radius: 5px;
-    -fx-background-radius: 5px;
+    -fx-font-size: 11px;
+}
+
+/* Botones de Sector (Pestañas/Píldoras) */
+.button-sector {
+    -fx-background-color: #F3F4F6; /* Gris muy claro */
+    -fx-text-fill: #4B5563;       /* Gris oscuro */
+    -fx-background-radius: 20;    /* Píldora */
+    -fx-border-color: transparent;
     -fx-cursor: hand;
-    -fx-transition: all 0.3s;
+    -fx-font-weight: bold;
+    -fx-padding: 8 16 8 16;
+    -fx-font-size: 12px;
 }
 
-.nav-btn:hover {
-    -fx-background-color: rgba(255,255,255,0.2);
-    -fx-border-color: #f39c12;
-    -fx-text-fill: #f39c12; /* Naranja Fudo al pasar el mouse */
+.button-sector:hover {
+    -fx-background-color: #E5E7EB; /* Gris un poco más oscuro al pasar mouse */
 }
 
-/* 3. CONTENEDOR DE MESAS (Vidrio más claro) */
-.glass-container {
-    -fx-background-color: rgba(255, 255, 255, 0.1); /* Blanco muy transparente */
-    -fx-background-radius: 15;
-    -fx-border-radius: 15;
-    -fx-border-color: rgba(255, 255, 255, 0.2);
-    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.4), 10, 0, 0, 5);
+/* Sector Activo (Naranja Vibrante) */
+.button-sector-activo {
+    -fx-background-color: #F59E0B; /* Ámbar/Naranja moderno */
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(three-pass-box, rgba(245, 158, 11, 0.4), 8, 0, 0, 4);
 }
 
-/* 4. MESAS (ESTADOS) */
+/* Botón Nuevo Sector (+) */
+.button-add-sector {
+    -fx-background-color: #10B981; /* Esmeralda */
+    -fx-text-fill: white;
+    -fx-background-radius: 50; /* Círculo perfecto */
+    -fx-min-width: 30;
+    -fx-min-height: 30;
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+/* Campo de Buscador */
+.text-field-buscador {
+    -fx-background-color: #F3F4F6;
+    -fx-background-radius: 8 0 0 8; /* Redondeado solo a la izquierda */
+    -fx-border-color: #D1D5DB;
+    -fx-border-radius: 8 0 0 8;
+    -fx-prompt-text-fill: #9CA3AF;
+    -fx-font-weight: bold;
+}
+
+.text-field-buscador:focused {
+    -fx-border-color: #F59E0B; /* Borde naranja al escribir */
+    -fx-background-color: white;
+}
+
+/* Botón GO ➤ */
+.button-go {
+    -fx-background-color: #F59E0B;
+    -fx-text-fill: white;
+    -fx-background-radius: 0 8 8 0; /* Redondeado solo a la derecha */
+    -fx-font-weight: bold;
+    -fx-cursor: hand;
+}
+
+/* =============================================================================
+   3. MESAS (TARJETAS / CARDS)
+   ============================================================================= */
 .mesa-btn {
-    -fx-background-radius: 10;
+    -fx-background-radius: 16; /* Bordes muy redondeados */
+    -fx-border-radius: 16;
+    -fx-cursor: hand;
+    -fx-alignment: center;
+    /* Sombra suave para dar profundidad (Elevation) */
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.1), 10, 0, 0, 5);
+    -fx-border-width: 0; /* Sin borde negro feo */
+}
+
+/* Animación al pasar el mouse por encima (Se levanta un poco) */
+.mesa-btn:hover {
+    -fx-translate-y: -3; /* Sube 3 pixeles */
+    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.2), 15, 0, 0, 8);
+}
+
+/* MESA LIBRE (Verde Esmeralda Moderno) */
+.mesa-libre {
+    -fx-background-color: linear-gradient(to bottom right, #10B981, #059669);
+}
+
+/* MESA OCUPADA (Coral/Rojo Suave) */
+.mesa-ocupada {
+    -fx-background-color: linear-gradient(to bottom right, #F43F5E, #E11D48);
+}
+
+/* Estilo del Número de Mesa (Grande y Blanco) */
+.mesa-numero {
+    -fx-font-size: 32px;
+    -fx-font-weight: bold;
+    -fx-text-fill: white;
+    -fx-effect: dropshadow(one-pass-box, rgba(0,0,0,0.2), 2, 0, 0, 1);
+}
+
+/* Estilo del Estado (Libre/Ocupada) */
+.mesa-estado {
+    -fx-font-size: 13px;
+    -fx-text-fill: rgba(255,255,255,0.9); /* Blanco un poco transparente */
+    -fx-font-weight: bold;
+}
+
+/* Contador de Personas (Badge) */
+.mesa-badge {
+    -fx-background-color: rgba(0,0,0,0.25);
+    -fx-background-radius: 12;
+    -fx-text-fill: white;
+    -fx-font-size: 11px;
+    -fx-padding: 2 8 2 8;
+}
+
+/* =============================================================================
+   4. BOTÓN INFERIOR (AGREGAR MESA)
+   ============================================================================= */
+.button-add-mesa {
+    -fx-background-color: #3B82F6; /* Azul brillante moderno */
+    -fx-text-fill: white;
     -fx-font-weight: bold;
     -fx-font-size: 14px;
+    -fx-background-radius: 12; /* Coincide con el estilo de las mesas */
+    -fx-padding: 10 20 10 20;
     -fx-cursor: hand;
-    -fx-effect: dropshadow(three-pass-box, rgba(0,0,0,0.3), 5, 0, 0, 2);
+    -fx-effect: dropshadow(three-pass-box, rgba(59, 130, 246, 0.4), 10, 0, 0, 4);
 }
 
-.mesa-libre {
-    -fx-background-color: linear-gradient(to bottom right, #2ecc71, #27ae60);
-    -fx-text-fill: white;
-}
-
-.mesa-ocupada {
-    -fx-background-color: linear-gradient(to bottom right, #e74c3c, #c0392b);
-    -fx-text-fill: white;
-    -fx-border-color: #ffcccc;
-    -fx-border-width: 2px;
-}
-
-.mesa-btn:hover {
-    -fx-scale-x: 1.05; /* Efecto Zoom al pasar el mouse */
-    -fx-scale-y: 1.05;
+.button-add-mesa:hover {
+    -fx-background-color: #2563EB; /* Azul más oscuro */
+    -fx-translate-y: -2;
 }
