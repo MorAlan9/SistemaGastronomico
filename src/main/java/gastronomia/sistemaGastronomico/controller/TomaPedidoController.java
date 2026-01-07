@@ -7,17 +7,20 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.Region;
+import javafx.scene.layout.Priority;
 import javafx.stage.Stage;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
 @Component
-public class TomaPedidoController {
+public class TomaPedidoController extends BaseController {
 
     private final ProductoRepository productoRepo;
     private final PedidoRepository pedidoRepo;
@@ -34,6 +37,7 @@ public class TomaPedidoController {
     @FXML private Label lblTituloMesa;
     @FXML private ListView<DetallePedido> listaItems;
     @FXML private Label lblTotal;
+    @FXML private Button btnComandar;
 
     public TomaPedidoController(ProductoRepository productoRepo, PedidoRepository pedidoRepo,
                                 DetallePedidoRepository detalleRepo, MozoRepository mozoRepo,
@@ -49,37 +53,27 @@ public class TomaPedidoController {
     @FXML
     public void initialize() {
         generarBotonesFiltros();
-        // CAMBIO: Solo cargamos productos activos al iniciar
         cargarProductos(productoRepo.findByActivoTrue());
 
+        Label placeholder = new Label("🛒 Seleccione productos del menú\npara comenzar el pedido.");
+        placeholder.setStyle("-fx-text-fill: #95a5a6; -fx-font-size: 14px; -fx-text-alignment: CENTER;");
+        listaItems.setPlaceholder(placeholder);
+
         ContextMenu contextMenu = new ContextMenu();
-        MenuItem itemRestar = new MenuItem("➖ Quitar 1 unidad");
+        MenuItem itemRestar = new MenuItem("🗑 Quitar ítem");
         itemRestar.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
         itemRestar.setOnAction(e -> accionEliminarItem());
         contextMenu.getItems().add(itemRestar);
         listaItems.setContextMenu(contextMenu);
     }
 
-    @FXML
-    public void accionEliminarItem() {
-        DetallePedido seleccionado = listaItems.getSelectionModel().getSelectedItem();
-        if (seleccionado == null) {
-            mostrarAlerta("Atención", "Selecciona un ítem de la lista para quitar.");
-            return;
-        }
-        pedidoService.quitarProducto(seleccionado.getId());
-        actualizarVistaPedido();
-    }
-
     public void setMesa(Mesa mesa) {
         this.mesaActual = mesa;
-        lblTituloMesa.setText("Mesa " + mesa.getNumero());
-
-        // AUTO-RELOAD: Solo traemos productos activos
-        cargarProductos(productoRepo.findByActivoTrue());
-
+        lblTituloMesa.setText("MESA " + mesa.getNumero());
         this.pedidoActual = pedidoRepo.findFirstByMesaAndEstado(mesa, "ABIERTO").orElse(null);
         if (this.pedidoActual == null) crearNuevoPedidoEmergencia();
+
+        actualizarEstadoBotonComandar();
         actualizarVistaPedido();
     }
 
@@ -90,90 +84,139 @@ public class TomaPedidoController {
         this.pedidoActual = pedidoRepo.save(nuevo);
     }
 
+    // --- ACCIÓN COMANDAR ---
+    @FXML
+    public void accionComandar() {
+        if (pedidoActual == null) return;
+
+        if (pedidoActual.getHoraComanda() != null) {
+            advertencia("Ya enviado", "Este pedido ya está en cocina.");
+            return;
+        }
+
+        try {
+            pedidoActual.setHoraComanda(LocalDateTime.now());
+            pedidoRepo.save(pedidoActual);
+
+            toast("✅ Pedido marchado a cocina", btnComandar);
+            actualizarEstadoBotonComandar();
+            actualizarVistaPedido();
+        } catch (Exception e) {
+            error("Error", "No se pudo comandar: " + e.getMessage());
+        }
+    }
+
+    private void actualizarEstadoBotonComandar() {
+        if (pedidoActual != null && pedidoActual.getHoraComanda() != null) {
+            btnComandar.setDisable(true);
+            btnComandar.setText("🕒 EN COCINA");
+            btnComandar.setStyle("-fx-background-color: #7f8c8d; -fx-text-fill: white; -fx-opacity: 0.8;");
+        } else {
+            btnComandar.setDisable(false);
+            btnComandar.setText("♨ COMANDAR");
+            btnComandar.setStyle("");
+            btnComandar.getStyleClass().add("btn-comandar");
+        }
+    }
+
+    @FXML
+    public void accionEliminarItem() {
+        if (pedidoActual != null && pedidoActual.getHoraComanda() != null) {
+            advertencia("Pedido en Cocina", "No se pueden eliminar ítems que ya marcharon.");
+            return;
+        }
+        DetallePedido seleccionado = listaItems.getSelectionModel().getSelectedItem();
+        if (seleccionado == null) {
+            toast("Selecciona un producto", listaItems);
+            return;
+        }
+        pedidoService.quitarProducto(seleccionado.getId());
+        actualizarVistaPedido();
+    }
+
     private void agregarProductoAlPedido(Producto prod) {
         if (prod.getStock() <= 0) {
-            mostrarAlerta("Sin Stock", "No queda stock de " + prod.getNombre());
+            toast("🚫 Sin Stock", contenedorProductos);
             return;
         }
         if (pedidoActual == null) return;
+
         pedidoService.agregarProducto(pedidoActual.getId(), prod.getId(), 1);
+        pedidoActual.setHoraUltimoProducto(LocalDateTime.now());
+        pedidoRepo.save(pedidoActual);
+
         actualizarVistaPedido();
     }
 
     private void actualizarVistaPedido() {
         List<DetallePedido> detalles = detalleRepo.findByPedido(pedidoActual);
         listaItems.getItems().setAll(detalles);
+        listaItems.getStyleClass().add("ticket-list");
+
+        boolean enCocina = (pedidoActual != null && pedidoActual.getHoraComanda() != null);
+
+        // Calcular total en vivo
+        BigDecimal totalCalculado = BigDecimal.ZERO;
+        for (DetallePedido d : detalles) {
+            BigDecimal subtotal = d.getPrecioUnitario().multiply(new BigDecimal(d.getCantidad()));
+            totalCalculado = totalCalculado.add(subtotal);
+        }
+        lblTotal.setText("TOTAL: $" + totalCalculado);
+
+        // Actualizamos objeto en memoria (por si acaso)
+        if (pedidoActual != null) pedidoActual.setTotal(totalCalculado);
 
         listaItems.setCellFactory(param -> new ListCell<DetallePedido>() {
             @Override
             protected void updateItem(DetallePedido item, boolean empty) {
                 super.updateItem(item, empty);
                 if (empty || item == null) {
-                    setText(null);
+                    setText(null); setGraphic(null);
                 } else {
-                    setText(item.getCantidad() + "x   " + item.getProducto().getNombre() +
-                            "   ($" + item.getPrecioUnitario() + ")");
-                    setStyle("-fx-font-size: 14px; -fx-padding: 5px;");
+                    HBox fila = new HBox(); fila.setSpacing(10);
+
+                    String prefix = enCocina ? "✅ " : "";
+                    Label lblCant = new Label(prefix + item.getCantidad() + "x");
+                    lblCant.setStyle("-fx-font-weight: bold; -fx-text-fill: #e67e22; -fx-min-width: 25px;");
+
+                    Label lblNom = new Label(item.getProducto().getNombre());
+                    if (enCocina) {
+                        lblNom.setStyle("-fx-text-fill: #7f8c8d;");
+                        lblCant.setStyle("-fx-font-weight: bold; -fx-text-fill: #27ae60;");
+                    } else {
+                        lblNom.setStyle("-fx-text-fill: #333;");
+                    }
+
+                    Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
+                    String subtotal = "$" + item.getPrecioUnitario().multiply(new BigDecimal(item.getCantidad()));
+                    Label lblPrecio = new Label(subtotal);
+                    lblPrecio.setStyle("-fx-font-weight: bold;");
+
+                    fila.getChildren().addAll(lblCant, lblNom, spacer, lblPrecio);
+                    setGraphic(fila);
                 }
             }
         });
-
-        Pedido p = pedidoRepo.findById(pedidoActual.getId()).orElseThrow();
-        lblTotal.setText("Total: $" + p.getTotal());
-    }
-
-    @FXML
-    public void accionCobrar() {
-        ChoiceDialog<String> dialogo = new ChoiceDialog<>("Efectivo", "Efectivo", "Tarjeta Débito", "Tarjeta Crédito", "QR / MP");
-        dialogo.setTitle("Cobrar Mesa " + mesaActual.getNumero());
-        dialogo.setHeaderText("Total a pagar: " + lblTotal.getText());
-        dialogo.setContentText("Forma de pago:");
-
-        Optional<String> resultado = dialogo.showAndWait();
-
-        if (resultado.isPresent()) {
-            String formaPago = resultado.get();
-            pedidoActual.setMetodoPago(formaPago);
-            pedidoRepo.save(pedidoActual);
-
-            List<DetallePedido> detalles = detalleRepo.findByPedido(pedidoActual);
-            for (DetallePedido det : detalles) {
-                Producto prodReal = productoRepo.findById(det.getProducto().getId()).orElse(null);
-                if (prodReal != null) {
-                    int nuevoStock = prodReal.getStock() - det.getCantidad();
-                    prodReal.setStock(nuevoStock);
-                    productoRepo.save(prodReal);
-                }
-            }
-            pedidoService.cerrarMesa(pedidoActual.getId());
-            mostrarAlerta("Cobro Exitoso", "Pago registrado y stock actualizado.");
-            cerrarVentana();
-        }
-    }
-
-    @FXML
-    public void accionVolver() {
-        cerrarVentana();
-    }
-
-    private void cerrarVentana() {
-        Stage stage = (Stage) lblTotal.getScene().getWindow();
-        stage.close();
     }
 
     private void cargarProductos(List<Producto> lista) {
         contenedorProductos.getChildren().clear();
         for (Producto prod : lista) {
-            // Nota: Aquí no hace falta validar prod.getActivo() porque la consulta SQL ya lo filtró
-            String texto = prod.getNombre() + "\n$" + prod.getPrecioActual() + "\n(Stock: " + prod.getStock() + ")";
-            Button btn = new Button(texto);
-            btn.setPrefSize(110, 80);
+            String nombre = prod.getNombre();
+            String precio = String.format("$%.0f", prod.getPrecioActual());
+            String stockInfo = "Stock: " + prod.getStock();
+
+            Button btn = new Button(nombre + "\n" + precio);
+            btn.setPrefSize(130, 90);
+            btn.getStyleClass().add("product-btn");
+            btn.setTooltip(new Tooltip(stockInfo));
 
             if (prod.getStock() <= 0) {
-                btn.setStyle("-fx-background-color: #ffcdd2; -fx-text-fill: red; -fx-font-size: 10px; text-align: center;");
+                btn.setText(nombre + "\nAGOTADO");
+                btn.getStyleClass().add("product-btn-no-stock");
                 btn.setDisable(true);
-            } else {
-                btn.setStyle("-fx-font-size: 11px; text-align: center;");
+            } else if (prod.getStock() < 10) {
+                btn.getStyleClass().add("product-btn-low-stock");
             }
             btn.setOnAction(e -> agregarProductoAlPedido(prod));
             contenedorProductos.getChildren().add(btn);
@@ -182,38 +225,57 @@ public class TomaPedidoController {
 
     private void generarBotonesFiltros() {
         contenedorFiltros.getChildren().clear();
-
-        Button btnReload = new Button("🔄");
-        btnReload.setStyle("-fx-background-color: #7f8c8d; -fx-text-fill: white; -fx-font-weight: bold;");
-        btnReload.setTooltip(new Tooltip("Recargar Productos Activos"));
-        // CAMBIO: Usamos findByActivoTrue()
-        btnReload.setOnAction(e -> cargarProductos(productoRepo.findByActivoTrue()));
-        contenedorFiltros.getChildren().add(btnReload);
-
-        Button btnTodo = new Button("TODO");
-        // CAMBIO: Usamos findByActivoTrue()
+        Button btnTodo = new Button("TODOS");
+        btnTodo.getStyleClass().add("filter-btn");
         btnTodo.setOnAction(e -> cargarProductos(productoRepo.findByActivoTrue()));
         contenedorFiltros.getChildren().add(btnTodo);
 
         List<Categoria> categorias = categoriaRepo.findAll();
-        String[] colores = {"#FFA726", "#29B6F6", "#66BB6A", "#AB47BC", "#EF5350"};
-        int i = 0;
         for (Categoria cat : categorias) {
-            Button btn = new Button(cat.getNombre().toUpperCase());
-            String color = colores[i % colores.length];
-            btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; -fx-font-weight: bold;");
-            // CAMBIO: Usamos findByCategoriaAndActivoTrue(cat)
+            Button btn = new Button(cat.getNombre());
+            btn.getStyleClass().add("filter-btn");
             btn.setOnAction(e -> cargarProductos(productoRepo.findByCategoriaAndActivoTrue(cat)));
             contenedorFiltros.getChildren().add(btn);
-            i++;
         }
     }
 
-    private void mostrarAlerta(String titulo, String mensaje) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle("Sistema");
-        alert.setHeaderText(titulo);
-        alert.setContentText(mensaje);
-        alert.showAndWait();
+    // --- ACCIÓN COBRAR ARREGLADA ---
+    @FXML
+    public void accionCobrar() {
+        // 1. Aseguramos el cálculo del total
+        actualizarVistaPedido();
+
+        ChoiceDialog<String> dialogo = new ChoiceDialog<>("Efectivo", "Efectivo", "Tarjeta Débito", "Tarjeta Crédito", "QR / MP");
+        dialogo.setTitle("Cobrar");
+        dialogo.setHeaderText("Mesa " + mesaActual.getNumero() + " - " + lblTotal.getText());
+        dialogo.setContentText("Forma de pago:");
+        estilizar(dialogo);
+
+        Optional<String> resultado = dialogo.showAndWait();
+        if (resultado.isPresent()) {
+            try {
+                String metodoPago = resultado.get();
+                // Limpiar string del total
+                String totalStr = lblTotal.getText().replace("TOTAL: $", "").trim();
+                BigDecimal totalFinal = new BigDecimal(totalStr);
+
+                // 2. LLAMAR AL SERVICIO PARA QUE HAGA LA MAGIA (Guardar en Historial)
+                pedidoService.cobrarPedido(pedidoActual.getId(), metodoPago, totalFinal);
+
+                toast("💵 Venta registrada correctamente", lblTotal);
+                cerrarVentana();
+
+            } catch (Exception e) {
+                e.printStackTrace();
+                error("Error al cobrar", "No se pudo registrar la venta.\n" + e.getMessage());
+            }
+        }
+    }
+
+    @FXML public void accionVolver() { cerrarVentana(); }
+
+    private void cerrarVentana() {
+        Stage stage = (Stage) lblTotal.getScene().getWindow();
+        stage.close();
     }
 }

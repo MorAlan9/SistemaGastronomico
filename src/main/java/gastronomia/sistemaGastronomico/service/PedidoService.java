@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 
 @Service
@@ -27,96 +28,113 @@ public class PedidoService {
         this.detalleRepo = detalleRepo;
     }
 
-    /**
-     * AGREGAR PRODUCTO (INTELIGENTE)
-     * Si el producto ya existe en la mesa, suma la cantidad al renglón existente.
-     * Si no existe, crea uno nuevo.
-     */
+    // --- AGREGAR PRODUCTO ---
     @Transactional
     public void agregarProducto(Long idPedido, Long idProducto, Integer cantidad) {
-
-        // 1. Buscamos Pedido y Producto
         Pedido pedido = pedidoRepo.findById(idPedido)
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
-
         Producto producto = productoRepo.findById(idProducto)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
 
-        // 2. ¿Ya existe este producto en este pedido?
         Optional<DetallePedido> existente = detalleRepo.findByPedidoAndProducto(pedido, producto);
 
         if (existente.isPresent()) {
-            // CASO A: YA EXISTE -> Solo sumamos la cantidad
             DetallePedido detalle = existente.get();
             detalle.setCantidad(detalle.getCantidad() + cantidad);
             detalleRepo.save(detalle);
         } else {
-            // CASO B: NO EXISTE -> Creamos un renglón nuevo
             DetallePedido nuevo = new DetallePedido(pedido, producto, cantidad, producto.getPrecioActual());
             detalleRepo.save(nuevo);
         }
 
-        // 3. Actualizar el TOTAL ($) del Pedido
+        // Recalcular total del pedido
         BigDecimal subtotal = producto.getPrecioActual().multiply(new BigDecimal(cantidad));
-        BigDecimal nuevoTotal = pedido.getTotal().add(subtotal);
-        pedido.setTotal(nuevoTotal);
-
+        pedido.setTotal(pedido.getTotal().add(subtotal));
         pedidoRepo.save(pedido);
-        System.out.println("➕ Producto agregado/sumado. Nuevo total: $" + nuevoTotal);
     }
 
-    /**
-     * QUITAR PRODUCTO (RESTAR DE A UNO)
-     * Resta 1 a la cantidad. Si queda en 0, elimina el renglón.
-     */
+    // --- QUITAR PRODUCTO ---
     @Transactional
     public void quitarProducto(Long idDetalle) {
-        // 1. Buscamos el detalle
         DetallePedido detalle = detalleRepo.findById(idDetalle)
-                .orElseThrow(() -> new RuntimeException("El detalle no existe"));
+                .orElseThrow(() -> new RuntimeException("Detalle no encontrado"));
 
         Pedido pedido = detalle.getPedido();
-        BigDecimal precioUnitario = detalle.getPrecioUnitario();
+        BigDecimal precio = detalle.getPrecioUnitario();
 
-        // 2. Restamos 1 a la cantidad actual
-        int nuevaCantidad = detalle.getCantidad() - 1;
-
-        if (nuevaCantidad > 0) {
-            // Si todavía quedan (ej: bajó de 3 a 2), actualizamos
-            detalle.setCantidad(nuevaCantidad);
+        if (detalle.getCantidad() > 1) {
+            detalle.setCantidad(detalle.getCantidad() - 1);
             detalleRepo.save(detalle);
         } else {
-            // Si llegó a 0, borramos el renglón de la base de datos
             detalleRepo.delete(detalle);
         }
 
-        // 3. Descontamos el precio de UNA unidad al total del pedido
-        BigDecimal nuevoTotal = pedido.getTotal().subtract(precioUnitario);
-        // Evitamos totales negativos por seguridad
+        BigDecimal nuevoTotal = pedido.getTotal().subtract(precio);
         if (nuevoTotal.compareTo(BigDecimal.ZERO) < 0) nuevoTotal = BigDecimal.ZERO;
 
         pedido.setTotal(nuevoTotal);
         pedidoRepo.save(pedido);
-
-        System.out.println("➖ Producto restado. Nuevo total: $" + nuevoTotal);
     }
 
-    /**
-     * CERRAR MESA
-     * Finaliza el pedido cambiándolo a estado 'CERRADO'.
-     */
+    // --- CERRAR MESA / COBRAR (SOLUCIÓN HISTORIAL) ---
     @Transactional
-    public void cerrarMesa(Long idPedido) {
+    public void cobrarPedido(Long idPedido, String metodoPago, BigDecimal totalFinal) {
+        // 1. Buscar Pedido
         Pedido pedido = pedidoRepo.findById(idPedido)
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
 
+        // 2. Validar que no esté cerrado ya
         if ("CERRADO".equals(pedido.getEstado())) {
-            throw new RuntimeException("¡La mesa ya estaba cerrada!");
+            throw new RuntimeException("Esta mesa ya fue cobrada anteriormente.");
         }
 
+        // 3. Actualizar Datos
+        pedido.setMetodoPago(metodoPago);
+        pedido.setTotal(totalFinal);
+        pedido.setEstado("CERRADO"); // Esto hace que aparezca en el historial
+
+        // 4. Descontar Stock
+        List<DetallePedido> detalles = detalleRepo.findByPedido(pedido);
+        for (DetallePedido det : detalles) {
+            Producto prod = det.getProducto();
+            int nuevoStock = prod.getStock() - det.getCantidad();
+            prod.setStock(nuevoStock);
+            productoRepo.save(prod);
+        }
+
+        // 5. Guardar Cambios
+        pedidoRepo.save(pedido);
+        System.out.println("✅ Venta CERRADA y guardada: Mesa " + pedido.getMesa().getNumero());
+    }
+
+    // Método legacy por compatibilidad (si se usa en otro lado)
+    @Transactional
+    public void cerrarMesa(Long idPedido) {
+        Pedido pedido = pedidoRepo.findById(idPedido).orElseThrow();
         pedido.setEstado("CERRADO");
         pedidoRepo.save(pedido);
+    }
 
-        System.out.println("✅ Mesa cerrada correctamente.");
+
+
+    // --- MARCAR COMIDA ENTREGADA ---
+    @Transactional
+    public void marcarEntrega(Long idPedido) {
+        Pedido pedido = pedidoRepo.findById(idPedido)
+                .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
+
+        if (pedido.getHoraComanda() == null) {
+            throw new RuntimeException("¡No se puede entregar algo que no se ha comandado!");
+        }
+
+        // Si ya estaba entregado, no hacemos nada (o actualizamos la hora, según prefieras)
+        if (pedido.getHoraEntrega() != null) {
+            throw new RuntimeException("El pedido ya figura como entregado.");
+        }
+
+        pedido.setHoraEntrega(java.time.LocalDateTime.now());
+        pedidoRepo.save(pedido);
+
+        System.out.println("🍽 Pedido entregado: Mesa " + pedido.getMesa().getNumero());
     }
 }

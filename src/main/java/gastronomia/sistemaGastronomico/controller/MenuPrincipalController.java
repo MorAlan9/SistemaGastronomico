@@ -30,9 +30,9 @@ public class MenuPrincipalController {
     @FXML
     public void initialize() {
         // Al arrancar, cargamos el contenido dentro de cada pestaña
-        cargarContenidoEnTab(tabRestaurante, "/Views/restaurante.fxml");
-        cargarContenidoEnTab(tabVentas, "/Views/ventas.fxml");
-        cargarContenidoEnTab(tabProductos, "/Views/admin_productos.fxml");
+        cargarContenidoEnTab(tabRestaurante, "/Views/Restaurante.fxml");
+        cargarContenidoEnTab(tabVentas, "/Views/Ventas.fxml");
+        cargarContenidoEnTab(tabProductos, "/Views/Admin_Productos.fxml");
 
         // Si aún no tienes gastos.fxml, comenta esta línea para que no de error
         // cargarContenidoEnTab(tabGastos, "/Views/gastos.fxml");

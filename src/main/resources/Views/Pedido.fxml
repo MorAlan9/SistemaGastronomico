@@ -4,6 +4,7 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.Label?>
 <?import javafx.scene.control.ListView?>
+<?import javafx.scene.control.ScrollPane?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.layout.AnchorPane?>
 <?import javafx.scene.layout.FlowPane?>
@@ -11,58 +12,83 @@
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<SplitPane dividerPositions="0.6" prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gastronomia.sistemaGastronomico.controller.TomaPedidoController">
-    <items>
-        <AnchorPane minHeight="0.0" minWidth="0.0">
-            <children>
-                <VBox spacing="10.0" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="10.0">
+<AnchorPane prefHeight="700.0" prefWidth="1100.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gastronomia.sistemaGastronomico.controller.TomaPedidoController">
+    <children>
+        <SplitPane dividerPositions="0.65" layoutX="200.0" layoutY="120.0" prefHeight="700.0" prefWidth="1000.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+            <items>
+                <AnchorPane minHeight="0.0" minWidth="0.0" styleClass="pos-background">
                     <children>
-                        <Label text="Carta / Menú">
-                            <font>
-                                <Font name="System Bold" size="18.0" />
-                            </font>
-                        </Label>
-
-                        <HBox fx:id="contenedorFiltros" spacing="10.0" />
-
-                        <FlowPane fx:id="contenedorProductos" hgap="10.0" vgap="10.0" VBox.vgrow="ALWAYS" />
-                    </children>
-                </VBox>
-            </children>
-        </AnchorPane>
-
-        <AnchorPane minHeight="0.0" minWidth="0.0">
-            <children>
-                <VBox spacing="15.0" AnchorPane.bottomAnchor="10.0" AnchorPane.leftAnchor="10.0" AnchorPane.rightAnchor="10.0" AnchorPane.topAnchor="10.0">
-                    <children>
-                        <Label fx:id="lblTituloMesa" text="Mesa X" textFill="#2c3e50">
-                            <font>
-                                <Font name="System Bold" size="24.0" />
-                            </font>
-                        </Label>
-
-                        <ListView fx:id="listaItems" VBox.vgrow="ALWAYS" />
-
-                        <Label fx:id="lblTotal" alignment="CENTER_RIGHT" maxWidth="1.7976931348623157E308" text="Total: $0.00" textFill="#d32f2f">
-                            <font>
-                                <Font name="System Bold" size="28.0" />
-                            </font>
-                        </Label>
-
-                        <HBox spacing="10.0">
+                        <VBox prefHeight="698.0" prefWidth="596.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                             <children>
-                                <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#accionVolver" prefHeight="50.0" style="-fx-background-color: #95a5a6; -fx-text-fill: white;" text="🔙 VOLVER" HBox.hgrow="ALWAYS">
-                                    <font><Font name="System Bold" size="14.0" /></font>
-                                </Button>
+                                <HBox alignment="CENTER_LEFT" prefHeight="60.0" spacing="15.0" style="-fx-background-color: white; -fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0;">
+                                    <children>
+                                        <Label text="CARTA" textFill="#2c3e50">
+                                            <font>
+                                                <Font name="System Bold" size="20.0" />
+                                            </font>
+                                        </Label>
+                                        <HBox fx:id="contenedorFiltros" alignment="CENTER_LEFT" spacing="8.0" HBox.hgrow="ALWAYS" />
+                                    </children>
+                                    <padding>
+                                        <Insets left="20.0" right="20.0" />
+                                    </padding>
+                                </HBox>
 
-                                <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#accionCobrar" prefHeight="50.0" style="-fx-background-color: #27ae60; -fx-text-fill: white;" text="💰 COBRAR" HBox.hgrow="ALWAYS">
-                                    <font><Font name="System Bold" size="14.0" /></font>
-                                </Button>
+                                <ScrollPane fitToWidth="true" style="-fx-background-color: transparent;" vbarPolicy="AS_NEEDED" VBox.vgrow="ALWAYS">
+                                    <content>
+                                        <FlowPane fx:id="contenedorProductos" hgap="15.0" style="-fx-background-color: #f4f6f8;" vgap="15.0">
+                                            <padding>
+                                                <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                                            </padding>
+                                        </FlowPane>
+                                    </content>
+                                </ScrollPane>
                             </children>
-                        </HBox>
+                        </VBox>
                     </children>
-                </VBox>
-            </children>
-        </AnchorPane>
-    </items>
-</SplitPane>
+                </AnchorPane>
+
+                <AnchorPane minHeight="0.0" minWidth="0.0" style="-fx-background-color: white;">
+                    <children>
+                        <VBox prefHeight="698.0" prefWidth="396.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                            <children>
+                                <HBox alignment="CENTER" prefHeight="60.0" style="-fx-background-color: #2c3e50;">
+                                    <children>
+                                        <Label fx:id="lblTituloMesa" text="MESA #" textFill="WHITE">
+                                            <font>
+                                                <Font name="System Bold" size="24.0" />
+                                            </font>
+                                        </Label>
+                                    </children>
+                                </HBox>
+
+                                <ListView fx:id="listaItems" styleClass="ticket-list" VBox.vgrow="ALWAYS" />
+
+                                <VBox spacing="15.0" style="-fx-background-color: #ecf0f1;">
+                                    <padding>
+                                        <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
+                                    </padding>
+                                    <children>
+                                        <HBox alignment="CENTER_RIGHT" styleClass="total-panel">
+                                            <children>
+                                                <Label fx:id="lblTotal" styleClass="total-label" text="TOTAL: $0.00" />
+                                            </children>
+                                        </HBox>
+
+                                        <HBox alignment="CENTER" spacing="10.0">
+                                            <children>
+                                                <Button mnemonicParsing="false" onAction="#accionVolver" prefHeight="50.0" prefWidth="90.0" styleClass="action-btn, btn-volver" text="VOLVER" />
+                                                <Button fx:id="btnComandar" mnemonicParsing="false" onAction="#accionComandar" prefHeight="50.0" prefWidth="130.0" styleClass="action-btn, btn-comandar" text="♨ COMANDAR" HBox.hgrow="ALWAYS" />
+                                                <Button mnemonicParsing="false" onAction="#accionCobrar" prefHeight="50.0" prefWidth="130.0" styleClass="action-btn, btn-cobrar" text="💵 COBRAR" HBox.hgrow="ALWAYS" />
+                                            </children>
+                                        </HBox>
+                                    </children>
+                                </VBox>
+                            </children>
+                        </VBox>
+                    </children>
+                </AnchorPane>
+            </items>
+        </SplitPane>
+    </children>
+</AnchorPane>
