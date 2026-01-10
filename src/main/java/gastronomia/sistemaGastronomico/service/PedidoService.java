@@ -29,27 +29,50 @@ public class PedidoService {
     }
 
     // --- AGREGAR PRODUCTO ---
-    @Transactional
     public void agregarProducto(Long idPedido, Long idProducto, Integer cantidad) {
         Pedido pedido = pedidoRepo.findById(idPedido)
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
         Producto producto = productoRepo.findById(idProducto)
                 .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
 
-        Optional<DetallePedido> existente = detalleRepo.findByPedidoAndProducto(pedido, producto);
+        // 1. OBTENER TODOS LOS DETALLES DEL PEDIDO
+        List<DetallePedido> detalles = detalleRepo.findByPedido(pedido);
 
-        if (existente.isPresent()) {
-            DetallePedido detalle = existente.get();
-            detalle.setCantidad(detalle.getCantidad() + cantidad);
-            detalleRepo.save(detalle);
+        // 2. BUSCAR SI EXISTE UNA LÍNEA "PENDIENTE" (horaMarchar == null) PARA ESTE PRODUCTO
+        // Si el producto ya se marchó, horaMarchar tendrá fecha y NO entrará aquí.
+        Optional<DetallePedido> detallePendiente = detalles.stream()
+                .filter(d -> d.getProducto().getId().equals(idProducto) && d.getHoraMarchar() == null)
+                .findFirst();
+
+        if (detallePendiente.isPresent()) {
+            // CASO A: Ya existe una línea NUEVA sin marchar -> SUMAMOS CANTIDAD
+            // Ej: Tenía 1 Coca nueva y agrego otra -> Ahora son 2 Cocas nuevas.
+            DetallePedido d = detallePendiente.get();
+            d.setCantidad(d.getCantidad() + cantidad);
+            detalleRepo.save(d);
         } else {
-            DetallePedido nuevo = new DetallePedido(pedido, producto, cantidad, producto.getPrecioActual());
+            // CASO B: No existe línea o las que existen YA MARCHARON -> CREAMOS NUEVA LÍNEA
+            // Ej: Ya marché 2 Lomos. Agrego 1 Lomo más.
+            // El sistema creará una línea aparte para ese nuevo Lomo (horaMarchar = null).
+            DetallePedido nuevo = new DetallePedido();
+            nuevo.setPedido(pedido);
+            nuevo.setProducto(producto);
+            nuevo.setCantidad(cantidad);
+            nuevo.setPrecioUnitario(producto.getPrecioActual());
+            // horaMarchar nace nulo automáticamente
             detalleRepo.save(nuevo);
         }
 
-        // Recalcular total del pedido
-        BigDecimal subtotal = producto.getPrecioActual().multiply(new BigDecimal(cantidad));
-        pedido.setTotal(pedido.getTotal().add(subtotal));
+        // Opcional: Recalcular total del pedido aquí si tu sistema lo requiere
+        recalcularTotal(pedido);
+    }
+
+    // Método auxiliar (si no lo tienes, agrégalo para mantener el total sincronizado)
+    private void recalcularTotal(Pedido pedido) {
+        BigDecimal total = detalleRepo.findByPedido(pedido).stream()
+                .map(d -> d.getPrecioUnitario().multiply(new BigDecimal(d.getCantidad())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        pedido.setTotal(total);
         pedidoRepo.save(pedido);
     }
 

@@ -2,6 +2,7 @@ package gastronomia.sistemaGastronomico.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 @Entity
 @Table(name = "detalle_pedidos")
@@ -24,7 +25,10 @@ public class DetallePedido {
     @Column(name = "precio_unitario")
     private BigDecimal precioUnitario;
 
-    // --- 1. CONSTRUCTOR VACÍO (Obligatorio) ---
+    // --- NUEVO CAMPO: Para saber si este ítem específico ya marchó ---
+    private LocalDateTime horaMarchar;
+
+    // --- 1. CONSTRUCTOR VACÍO ---
     public DetallePedido() {
     }
 
@@ -34,6 +38,7 @@ public class DetallePedido {
         this.producto = producto;
         this.cantidad = cantidad;
         this.precioUnitario = precioUnitario;
+        // horaMarchar nace en NULL (significa "Nuevo")
     }
 
     // --- 3. GETTERS Y SETTERS ---
@@ -51,4 +56,7 @@ public class DetallePedido {
 
     public BigDecimal getPrecioUnitario() { return precioUnitario; }
     public void setPrecioUnitario(BigDecimal precioUnitario) { this.precioUnitario = precioUnitario; }
+
+    public LocalDateTime getHoraMarchar() { return horaMarchar; }
+    public void setHoraMarchar(LocalDateTime horaMarchar) { this.horaMarchar = horaMarchar; }
 }

@@ -3,12 +3,16 @@ package gastronomia.sistemaGastronomico.controller;
 import gastronomia.sistemaGastronomico.dao.*;
 import gastronomia.sistemaGastronomico.model.*;
 import gastronomia.sistemaGastronomico.service.PedidoService;
+import javafx.application.Platform;
 import javafx.fxml.FXML;
+import javafx.geometry.Pos;
 import javafx.scene.control.*;
+import javafx.scene.input.KeyCode;
+import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
-import javafx.scene.layout.Region;
 import javafx.scene.layout.Priority;
+import javafx.scene.layout.Region;
 import javafx.stage.Stage;
 import org.springframework.stereotype.Component;
 
@@ -16,8 +20,11 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Component
 public class TomaPedidoController extends BaseController {
@@ -55,16 +62,18 @@ public class TomaPedidoController extends BaseController {
         generarBotonesFiltros();
         cargarProductos(productoRepo.findByActivoTrue());
 
-        Label placeholder = new Label("🛒 Seleccione productos del menú\npara comenzar el pedido.");
+        Label placeholder = new Label("🛒 Seleccione productos...\n(F5 para Marchar)");
         placeholder.setStyle("-fx-text-fill: #95a5a6; -fx-font-size: 14px; -fx-text-alignment: CENTER;");
         listaItems.setPlaceholder(placeholder);
 
-        ContextMenu contextMenu = new ContextMenu();
-        MenuItem itemRestar = new MenuItem("🗑 Quitar ítem");
-        itemRestar.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
-        itemRestar.setOnAction(e -> accionEliminarItem());
-        contextMenu.getItems().add(itemRestar);
-        listaItems.setContextMenu(contextMenu);
+        // Agregamos tus Atajos de Teclado (F5, F4, ESC)
+        Platform.runLater(() -> {
+            if (btnComandar.getScene() != null) {
+                btnComandar.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.F5), this::accionComandar);
+                btnComandar.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.F4), this::accionCobrar);
+                btnComandar.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.ESCAPE), this::accionVolver);
+            }
+        });
     }
 
     public void setMesa(Mesa mesa) {
@@ -84,88 +93,142 @@ public class TomaPedidoController extends BaseController {
         this.pedidoActual = pedidoRepo.save(nuevo);
     }
 
-    // --- ACCIÓN COMANDAR ---
+    // --- ACCIÓN COMANDAR INTELIGENTE (Solo marcha lo nuevo) ---
     @FXML
     public void accionComandar() {
-        if (pedidoActual == null) return;
+        if (pedidoActual == null || btnComandar.isDisabled()) return;
 
-        if (pedidoActual.getHoraComanda() != null) {
-            advertencia("Ya enviado", "Este pedido ya está en cocina.");
+        // 1. Filtrar ítems NUEVOS (los que tienen horaMarchar en null)
+        List<DetallePedido> detalles = detalleRepo.findByPedido(pedidoActual);
+        List<DetallePedido> nuevos = detalles.stream()
+                .filter(d -> d.getHoraMarchar() == null)
+                .collect(Collectors.toList());
+
+        if (nuevos.isEmpty()) {
+            toast("Nada nuevo para marchar", btnComandar);
             return;
         }
 
+        LocalDateTime ahora = LocalDateTime.now();
+        // 2. Detectar si lo nuevo incluye Cocina (Lomo) o solo Barra (Coca)
+        boolean hayCocina = nuevos.stream().anyMatch(d -> d.getProducto().isEsCocina());
+
         try {
-            pedidoActual.setHoraComanda(LocalDateTime.now());
+            // 3. Marcar hora en los ítems individuales
+            for (DetallePedido d : nuevos) {
+                d.setHoraMarchar(ahora);
+                detalleRepo.save(d);
+            }
+
+            // 4. Actualizar estado de la Mesa
+            if (hayCocina) {
+                // Si hay comida -> Actualizar Comanda (Reloj Rojo).
+                // NO borramos horaEntrega para mantener historial si es un postre.
+                pedidoActual.setHoraComanda(ahora);
+                toast("♨ Marchando a Cocina", btnComandar);
+            } else {
+                // Si solo es bebida -> No tocamos tiempos de mesa.
+                toast("🍺 Marchando a Barra", btnComandar);
+            }
+
+            // Actualizar última actividad
+            pedidoActual.setHoraUltimoProducto(ahora);
             pedidoRepo.save(pedidoActual);
 
-            toast("✅ Pedido marchado a cocina", btnComandar);
             actualizarEstadoBotonComandar();
             actualizarVistaPedido();
+
         } catch (Exception e) {
             error("Error", "No se pudo comandar: " + e.getMessage());
         }
     }
 
     private void actualizarEstadoBotonComandar() {
-        if (pedidoActual != null && pedidoActual.getHoraComanda() != null) {
-            btnComandar.setDisable(true);
-            btnComandar.setText("🕒 EN COCINA");
-            btnComandar.setStyle("-fx-background-color: #7f8c8d; -fx-text-fill: white; -fx-opacity: 0.8;");
-        } else {
+        if (pedidoActual == null) return;
+
+        // ¿Hay cosas sin marchar?
+        boolean hayNuevos = detalleRepo.findByPedido(pedidoActual).stream()
+                .anyMatch(d -> d.getHoraMarchar() == null);
+
+        if (hayNuevos) {
+            // Si hay nuevos -> Botón Habilitado
             btnComandar.setDisable(false);
-            btnComandar.setText("♨ COMANDAR");
+            btnComandar.setText("♨ MARCHAR NUEVOS (F5)");
             btnComandar.setStyle("");
             btnComandar.getStyleClass().add("btn-comandar");
+        } else {
+            // Si todo está marchado -> Botón Deshabilitado con Info
+            btnComandar.setDisable(true);
+
+            // Lógica para mostrar si está en cocina o comiendo
+            boolean cocinaTrabajando = false;
+            if (pedidoActual.getHoraComanda() != null) {
+                if (pedidoActual.getHoraEntrega() == null) cocinaTrabajando = true;
+                else if (pedidoActual.getHoraComanda().isAfter(pedidoActual.getHoraEntrega())) cocinaTrabajando = true;
+            }
+
+            if (cocinaTrabajando) {
+                btnComandar.setText("🕒 EN COCINA");
+                btnComandar.setStyle("-fx-background-color: #e67e22; -fx-text-fill: white;");
+            } else if (pedidoActual.getHoraEntrega() != null) {
+                btnComandar.setText("🍽 MESA COMIENDO");
+                btnComandar.setStyle("-fx-background-color: #3498db; -fx-text-fill: white;");
+            } else {
+                btnComandar.setText("ESPERANDO PEDIDO");
+                btnComandar.setStyle("");
+            }
         }
     }
 
     @FXML
     public void accionEliminarItem() {
-        if (pedidoActual != null && pedidoActual.getHoraComanda() != null) {
-            advertencia("Pedido en Cocina", "No se pueden eliminar ítems que ya marcharon.");
-            return;
-        }
         DetallePedido seleccionado = listaItems.getSelectionModel().getSelectedItem();
         if (seleccionado == null) {
             toast("Selecciona un producto", listaItems);
             return;
         }
+
+        // SEGURIDAD: Solo borrar si es NUEVO (horaMarchar es null)
+        if (seleccionado.getHoraMarchar() != null) {
+            advertencia("Bloqueado", "Este ítem ya fue marchado.\nNo se puede eliminar.");
+            return;
+        }
+
         pedidoService.quitarProducto(seleccionado.getId());
         actualizarVistaPedido();
+        actualizarEstadoBotonComandar();
     }
 
     private void agregarProductoAlPedido(Producto prod) {
-        if (prod.getStock() <= 0) {
-            toast("🚫 Sin Stock", contenedorProductos);
-            return;
-        }
+        if (prod.getStock() <= 0) { toast("🚫 Sin Stock", contenedorProductos); return; }
         if (pedidoActual == null) return;
 
         pedidoService.agregarProducto(pedidoActual.getId(), prod.getId(), 1);
-        pedidoActual.setHoraUltimoProducto(LocalDateTime.now());
-        pedidoRepo.save(pedidoActual);
 
+        // No tocamos horaUltimoProducto aquí, eso se hace al comandar para ser precisos
         actualizarVistaPedido();
+        actualizarEstadoBotonComandar();
     }
 
     private void actualizarVistaPedido() {
         List<DetallePedido> detalles = detalleRepo.findByPedido(pedidoActual);
+
+        // Ordenar: Primero los viejos, al final los nuevos
+        detalles.sort(Comparator.comparing(DetallePedido::getHoraMarchar, Comparator.nullsLast(Comparator.naturalOrder())));
+
         listaItems.getItems().setAll(detalles);
         listaItems.getStyleClass().add("ticket-list");
 
-        boolean enCocina = (pedidoActual != null && pedidoActual.getHoraComanda() != null);
-
-        // Calcular total en vivo
+        // Calcular total
         BigDecimal totalCalculado = BigDecimal.ZERO;
         for (DetallePedido d : detalles) {
             BigDecimal subtotal = d.getPrecioUnitario().multiply(new BigDecimal(d.getCantidad()));
             totalCalculado = totalCalculado.add(subtotal);
         }
         lblTotal.setText("TOTAL: $" + totalCalculado);
-
-        // Actualizamos objeto en memoria (por si acaso)
         if (pedidoActual != null) pedidoActual.setTotal(totalCalculado);
 
+        // VISTA INTELIGENTE (Celdas)
         listaItems.setCellFactory(param -> new ListCell<DetallePedido>() {
             @Override
             protected void updateItem(DetallePedido item, boolean empty) {
@@ -173,18 +236,30 @@ public class TomaPedidoController extends BaseController {
                 if (empty || item == null) {
                     setText(null); setGraphic(null);
                 } else {
-                    HBox fila = new HBox(); fila.setSpacing(10);
+                    HBox fila = new HBox(10); fila.setAlignment(Pos.CENTER_LEFT);
 
-                    String prefix = enCocina ? "✅ " : "";
-                    Label lblCant = new Label(prefix + item.getCantidad() + "x");
+                    boolean esNuevo = item.getHoraMarchar() == null;
+                    boolean esCocina = item.getProducto().isEsCocina();
+
+                    // Icono según estado
+                    String icono = esNuevo ? "🆕" : (esCocina ? "♨️" : "🍸");
+                    Label lblIcono = new Label(icono);
+
+                    Label lblCant = new Label(item.getCantidad() + "x");
                     lblCant.setStyle("-fx-font-weight: bold; -fx-text-fill: #e67e22; -fx-min-width: 25px;");
 
                     Label lblNom = new Label(item.getProducto().getNombre());
-                    if (enCocina) {
-                        lblNom.setStyle("-fx-text-fill: #7f8c8d;");
-                        lblCant.setStyle("-fx-font-weight: bold; -fx-text-fill: #27ae60;");
+                    Label lblHora = new Label();
+
+                    if (esNuevo) {
+                        // Estilo Nuevo (Negro y fuerte)
+                        lblNom.setStyle("-fx-text-fill: #000; -fx-font-weight: bold;");
                     } else {
-                        lblNom.setStyle("-fx-text-fill: #333;");
+                        // Estilo Viejo (Gris y con hora)
+                        lblNom.setStyle("-fx-text-fill: #7f8c8d;");
+                        String horaStr = item.getHoraMarchar().format(DateTimeFormatter.ofPattern("HH:mm"));
+                        lblHora.setText(horaStr);
+                        lblHora.setStyle("-fx-font-size: 10px; -fx-text-fill: #95a5a6;");
                     }
 
                     Region spacer = new Region(); HBox.setHgrow(spacer, Priority.ALWAYS);
@@ -192,7 +267,7 @@ public class TomaPedidoController extends BaseController {
                     Label lblPrecio = new Label(subtotal);
                     lblPrecio.setStyle("-fx-font-weight: bold;");
 
-                    fila.getChildren().addAll(lblCant, lblNom, spacer, lblPrecio);
+                    fila.getChildren().addAll(lblIcono, lblCant, lblNom, spacer, lblHora, lblPrecio);
                     setGraphic(fila);
                 }
             }
@@ -239,12 +314,10 @@ public class TomaPedidoController extends BaseController {
         }
     }
 
-    // --- ACCIÓN COBRAR ARREGLADA ---
+    // --- ACCIÓN COBRAR (Sin cambios, tu versión) ---
     @FXML
     public void accionCobrar() {
-        // 1. Aseguramos el cálculo del total
         actualizarVistaPedido();
-
         ChoiceDialog<String> dialogo = new ChoiceDialog<>("Efectivo", "Efectivo", "Tarjeta Débito", "Tarjeta Crédito", "QR / MP");
         dialogo.setTitle("Cobrar");
         dialogo.setHeaderText("Mesa " + mesaActual.getNumero() + " - " + lblTotal.getText());
@@ -255,16 +328,13 @@ public class TomaPedidoController extends BaseController {
         if (resultado.isPresent()) {
             try {
                 String metodoPago = resultado.get();
-                // Limpiar string del total
                 String totalStr = lblTotal.getText().replace("TOTAL: $", "").trim();
                 BigDecimal totalFinal = new BigDecimal(totalStr);
 
-                // 2. LLAMAR AL SERVICIO PARA QUE HAGA LA MAGIA (Guardar en Historial)
                 pedidoService.cobrarPedido(pedidoActual.getId(), metodoPago, totalFinal);
 
                 toast("💵 Venta registrada correctamente", lblTotal);
                 cerrarVentana();
-
             } catch (Exception e) {
                 e.printStackTrace();
                 error("Error al cobrar", "No se pudo registrar la venta.\n" + e.getMessage());
@@ -273,9 +343,7 @@ public class TomaPedidoController extends BaseController {
     }
 
     @FXML public void accionVolver() { cerrarVentana(); }
-
     private void cerrarVentana() {
-        Stage stage = (Stage) lblTotal.getScene().getWindow();
-        stage.close();
+        ((Stage) lblTotal.getScene().getWindow()).close();
     }
 }
