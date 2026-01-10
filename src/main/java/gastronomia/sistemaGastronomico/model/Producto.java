@@ -2,94 +2,58 @@ package gastronomia.sistemaGastronomico.model;
 
 import jakarta.persistence.*;
 import java.math.BigDecimal;
-import java.util.Objects;
 
 @Entity
-@Table(name = "productos")
 public class Producto {
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String nombre;
 
-    @Column(name = "precio_actual")
-    private BigDecimal precioActual;
-
+    // Usamos el Objeto Categoria (Relación ManyToOne)
     @ManyToOne
-    @JoinColumn(name = "id_categoria")
+    @JoinColumn(name = "categoria_id")
     private Categoria categoria;
 
-    // --- NUEVO: STOCK (Inventario) ---
-    @Column(name = "stock")
+    private BigDecimal precioActual;
     private Integer stock;
+    private Boolean activo;
 
-    // --- NUEVO: ACTIVO (Borrado lógico) ---
-    @Column(columnDefinition = "boolean default true")
-    private Boolean activo = true;
+    // Campo nuevo para saber si demora
+    @Column(name = "es_cocina")
+    private boolean esCocina;
 
-    // ==========================================
-    // 1. CONSTRUCTORES
-    // ==========================================
-    public Producto() {
-        // Constructor vacío requerido por JPA
-    }
+    public Producto() {}
 
-    // Constructor completo para crear productos nuevos fácilmente
-    public Producto(String nombre, BigDecimal precioActual, Categoria categoria) {
+    public Producto(String nombre, Categoria categoria, BigDecimal precio, Integer stock, Boolean activo, boolean esCocina) {
         this.nombre = nombre;
-        this.precioActual = precioActual;
         this.categoria = categoria;
-        this.stock = 0;       // Nace con 0 stock si no se especifica
-        this.activo = true;   // Nace activo
+        this.precioActual = precio;
+        this.stock = stock;
+        this.activo = activo;
+        this.esCocina = esCocina;
     }
 
-    // ==========================================
-    // 2. GETTERS Y SETTERS
-    // ==========================================
+    // Getters y Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
     public String getNombre() { return nombre; }
     public void setNombre(String nombre) { this.nombre = nombre; }
 
-    public BigDecimal getPrecioActual() { return precioActual; }
-    public void setPrecioActual(BigDecimal precioActual) { this.precioActual = precioActual; }
-
     public Categoria getCategoria() { return categoria; }
     public void setCategoria(Categoria categoria) { this.categoria = categoria; }
 
-    // Getter inteligente: evita que devuelva 'null'
-    public Integer getStock() {
-        return (stock != null) ? stock : 0;
-    }
+    public BigDecimal getPrecioActual() { return precioActual; }
+    public void setPrecioActual(BigDecimal precioActual) { this.precioActual = precioActual; }
+
+    public Integer getStock() { return stock; }
     public void setStock(Integer stock) { this.stock = stock; }
 
     public Boolean getActivo() { return activo; }
     public void setActivo(Boolean activo) { this.activo = activo; }
 
-    // ==========================================
-    // 3. MÉTODOS AUXILIARES
-    // ==========================================
-    @Override
-    public String toString() {
-        // Esto se muestra en las listas si no configuras una celda personalizada
-        String cat = (categoria != null) ? categoria.getNombre() : "Sin Cat";
-        return nombre + " ($" + precioActual + ") [Stock: " + getStock() + "]";
-    }
-
-    // Buena práctica: Comparar por ID para evitar duplicados en listas
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        Producto producto = (Producto) o;
-        return Objects.equals(id, producto.id);
-    }
-
-    @Override
-    public int hashCode() {
-        return Objects.hash(id);
-    }
+    public boolean isEsCocina() { return esCocina; }
+    public void setEsCocina(boolean esCocina) { this.esCocina = esCocina; }
 }

@@ -4,25 +4,37 @@ import gastronomia.sistemaGastronomico.dao.CategoriaRepository;
 import gastronomia.sistemaGastronomico.dao.ProductoRepository;
 import gastronomia.sistemaGastronomico.model.Categoria;
 import gastronomia.sistemaGastronomico.model.Producto;
+import javafx.beans.property.SimpleStringProperty;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.util.StringConverter;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.util.Optional;
+import java.util.List;
 
 @Component
-public class AdminProductosController {
+public class AdminProductosController extends BaseController {
 
     private final ProductoRepository productoRepo;
     private final CategoriaRepository categoriaRepo;
 
-    @FXML private ListView<Producto> listaProductos;
+    // Campos del Formulario
     @FXML private TextField txtNombre;
     @FXML private TextField txtPrecio;
     @FXML private TextField txtStock;
-    @FXML private ComboBox<Categoria> comboCategoria;
-    @FXML private Label lblInfo;
+    @FXML private ComboBox<Categoria> cmbCategoria;
+    @FXML private CheckBox chkEsCocina;
+
+    // Tabla
+    @FXML private TableView<Producto> tablaProductos;
+    @FXML private TableColumn<Producto, Long> colId;
+    @FXML private TableColumn<Producto, String> colNombre;
+    @FXML private TableColumn<Producto, BigDecimal> colPrecio;
+    @FXML private TableColumn<Producto, Integer> colStock;
+    @FXML private TableColumn<Producto, String> colCategoria;
+    @FXML private TableColumn<Producto, String> colTipo;
 
     public AdminProductosController(ProductoRepository productoRepo, CategoriaRepository categoriaRepo) {
         this.productoRepo = productoRepo;
@@ -31,46 +43,56 @@ public class AdminProductosController {
 
     @FXML
     public void initialize() {
+        configurarTabla();
         cargarCategorias();
         actualizarLista();
+    }
 
-        // --- NUEVO: MENÚ CONTEXTUAL (Clic Derecho) ---
-        ContextMenu contextMenu = new ContextMenu();
+    private void configurarTabla() {
+        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        colNombre.setCellValueFactory(new PropertyValueFactory<>("nombre"));
+        colPrecio.setCellValueFactory(new PropertyValueFactory<>("precioActual"));
+        colStock.setCellValueFactory(new PropertyValueFactory<>("stock"));
 
-        MenuItem itemStock = new MenuItem("📦 Modificar Stock");
-        itemStock.setOnAction(e -> accionModificarStockRapido());
+        // Mostrar nombre de la Categoría
+        colCategoria.setCellValueFactory(cellData -> {
+            Categoria cat = cellData.getValue().getCategoria();
+            return new SimpleStringProperty(cat != null ? cat.getNombre() : "Sin Categoría");
+        });
 
-        MenuItem itemEliminar = new MenuItem("🗑️ Eliminar");
-        itemEliminar.setStyle("-fx-text-fill: red;");
-        itemEliminar.setOnAction(e -> eliminarProducto());
-
-        contextMenu.getItems().addAll(itemStock, new SeparatorMenuItem(), itemEliminar);
-        listaProductos.setContextMenu(contextMenu);
+        // Mostrar Tipo (Cocina/Barra)
+        colTipo.setCellValueFactory(cellData -> {
+            boolean esCocina = cellData.getValue().isEsCocina();
+            return new SimpleStringProperty(esCocina ? "♨ Cocina" : "🍸 Barra");
+        });
     }
 
     private void cargarCategorias() {
-        comboCategoria.getItems().clear();
-        comboCategoria.getItems().addAll(categoriaRepo.findAll());
+        List<Categoria> categorias = categoriaRepo.findAll();
+        cmbCategoria.getItems().setAll(categorias);
+
+        // Convertidor para que el ComboBox muestre el nombre bonito
+        cmbCategoria.setConverter(new StringConverter<Categoria>() {
+            @Override
+            public String toString(Categoria cat) {
+                return cat != null ? cat.getNombre() : "";
+            }
+            @Override
+            public Categoria fromString(String string) { return null; }
+        });
     }
 
     @FXML
     public void guardarProducto() {
         try {
-            String nombre = txtNombre.getText().trim(); // Quitamos espacios extra
+            String nombre = txtNombre.getText();
             String precioStr = txtPrecio.getText();
             String stockStr = txtStock.getText();
-            Categoria categoria = comboCategoria.getValue();
+            Categoria categoriaSeleccionada = cmbCategoria.getValue();
+            boolean esCocina = chkEsCocina.isSelected();
 
-            // 1. Validaciones básicas
-            if (nombre.isEmpty() || precioStr.isEmpty() || stockStr.isEmpty() || categoria == null) {
-                mostrarMensaje("❌ Complete todos los campos.", true);
-                return;
-            }
-
-            // 2. VALIDACIÓN DE DUPLICADOS (NUEVO)
-            // Preguntamos a la base de datos si ya existe ese nombre
-            if (productoRepo.existsByNombreIgnoreCase(nombre)) {
-                mostrarMensaje("❌ Error: Ya existe un producto llamado '" + nombre + "'.", true);
+            if (nombre.isEmpty() || precioStr.isEmpty() || stockStr.isEmpty() || categoriaSeleccionada == null) {
+                advertencia("Datos Incompletos", "Complete todos los campos.");
                 return;
             }
 
@@ -80,93 +102,37 @@ public class AdminProductosController {
             Producto nuevo = new Producto();
             nuevo.setNombre(nombre);
             nuevo.setPrecioActual(precio);
-            nuevo.setCategoria(categoria);
             nuevo.setStock(stock);
+            nuevo.setCategoria(categoriaSeleccionada);
+            nuevo.setEsCocina(esCocina);
+            nuevo.setActivo(true);
 
             productoRepo.save(nuevo);
 
+            mostrarMensaje("✅ Producto Guardado", false);
             limpiarCampos();
-            mostrarMensaje("✅ Guardado: " + nombre, false);
             actualizarLista();
 
         } catch (NumberFormatException e) {
-            mostrarMensaje("❌ Precio y Stock deben ser números.", true);
+            error("Error", "Precio y Stock deben ser números.");
         } catch (Exception e) {
-            mostrarMensaje("❌ Error: " + e.getMessage(), true);
+            error("Error", "No se pudo guardar: " + e.getMessage());
         }
     }
 
-    // --- LÓGICA CLIC DERECHO: MODIFICAR STOCK ---
-    private void accionModificarStockRapido() {
-        Producto seleccionado = listaProductos.getSelectionModel().getSelectedItem();
-        if (seleccionado == null) return;
-
-        TextInputDialog dialog = new TextInputDialog(String.valueOf(seleccionado.getStock()));
-        dialog.setTitle("Gestión de Stock");
-        dialog.setHeaderText("Modificar Stock para: " + seleccionado.getNombre());
-        dialog.setContentText("Nuevo Stock Total:");
-
-        Optional<String> result = dialog.showAndWait();
-        result.ifPresent(nuevoStockStr -> {
-            try {
-                int nuevoStock = Integer.parseInt(nuevoStockStr);
-                if (nuevoStock < 0) {
-                    mostrarMensaje("❌ El stock no puede ser negativo.", true);
-                    return;
-                }
-
-                // Actualizamos y guardamos
-                seleccionado.setStock(nuevoStock);
-                productoRepo.save(seleccionado);
-
-                actualizarLista();
-                mostrarMensaje("✅ Stock actualizado a " + nuevoStock, false);
-
-            } catch (NumberFormatException e) {
-                mostrarMensaje("❌ Ingrese un número válido.", true);
-            }
-        });
+    private void mostrarMensaje(String s, boolean b) {
     }
 
-    @FXML
-    public void eliminarProducto() {
-        Producto seleccionado = listaProductos.getSelectionModel().getSelectedItem();
-
-        if (seleccionado == null) {
-            mostrarMensaje("⚠️ Seleccione un producto para eliminar.", true);
-            return;
-        }
-
-        // --- LÓGICA DE BORRADO LOGICO (SOFT DELETE) ---
-        // En lugar de borrarlo, lo apagamos.
-        seleccionado.setActivo(false);
-        productoRepo.save(seleccionado);
-
-        actualizarLista(); // Se recarga la lista y el producto desaparece visualmente
-        mostrarMensaje("🗑️ Producto eliminado (archivado).", false);
-    }
-
-    @FXML
-    public void actualizarLista() {
-        listaProductos.getItems().clear();
-        // CAMBIO IMPORTANTE: Usamos findByActivoTrue() en vez de findAll()
-        // Así solo vemos los productos "vivos".
-        listaProductos.getItems().addAll(productoRepo.findByActivoTrue());
+    private void actualizarLista() {
+        tablaProductos.getItems().clear();
+        tablaProductos.getItems().addAll(productoRepo.findAll());
     }
 
     private void limpiarCampos() {
         txtNombre.clear();
         txtPrecio.clear();
         txtStock.clear();
-        comboCategoria.getSelectionModel().clearSelection();
-    }
-
-    private void mostrarMensaje(String msg, boolean error) {
-        lblInfo.setText(msg);
-        if (error) {
-            lblInfo.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
-        } else {
-            lblInfo.setStyle("-fx-text-fill: green; -fx-font-weight: bold;");
-        }
+        cmbCategoria.getSelectionModel().clearSelection();
+        chkEsCocina.setSelected(false);
     }
 }
