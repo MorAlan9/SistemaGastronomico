@@ -25,23 +25,23 @@ public class DetallePedido {
     @Column(name = "precio_unitario")
     private BigDecimal precioUnitario;
 
-    // --- NUEVO CAMPO: Para saber si este ítem específico ya marchó ---
     private LocalDateTime horaMarchar;
 
-    // --- 1. CONSTRUCTOR VACÍO ---
+    // --- NUEVO CAMPO: OBSERVACIÓN (Notas de cocina) ---
+    private String observacion;
+
+    // --- CONSTRUCTORES ---
     public DetallePedido() {
     }
 
-    // --- 2. CONSTRUCTOR CON DATOS ---
     public DetallePedido(Pedido pedido, Producto producto, Integer cantidad, BigDecimal precioUnitario) {
         this.pedido = pedido;
         this.producto = producto;
         this.cantidad = cantidad;
         this.precioUnitario = precioUnitario;
-        // horaMarchar nace en NULL (significa "Nuevo")
     }
 
-    // --- 3. GETTERS Y SETTERS ---
+    // --- GETTERS Y SETTERS ---
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
 
@@ -59,4 +59,8 @@ public class DetallePedido {
 
     public LocalDateTime getHoraMarchar() { return horaMarchar; }
     public void setHoraMarchar(LocalDateTime horaMarchar) { this.horaMarchar = horaMarchar; }
+
+    // Getter y Setter de la Observación
+    public String getObservacion() { return observacion; }
+    public void setObservacion(String observacion) { this.observacion = observacion; }
 }

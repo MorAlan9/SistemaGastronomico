@@ -24,4 +24,6 @@ public interface MesaRepository extends JpaRepository<Mesa, Long> {
     // 'findFirst': Si hay duplicados, toma solo el primero (evita el error de 4 resultados).
     // 'AndActivaTrue': Ignora las mesas que borraste anteriormente.
     Optional<Mesa> findFirstByNumeroAndActivaTrue(Integer numero);
+
+    Optional<Mesa> findByNumero(Integer numero);
 }

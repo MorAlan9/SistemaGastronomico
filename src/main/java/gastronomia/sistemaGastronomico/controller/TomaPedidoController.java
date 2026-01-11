@@ -13,6 +13,7 @@ import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.HBox;
 import javafx.scene.layout.Priority;
 import javafx.scene.layout.Region;
+import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import org.springframework.stereotype.Component;
 
@@ -35,6 +36,7 @@ public class TomaPedidoController extends BaseController {
     private final MozoRepository mozoRepo;
     private final CategoriaRepository categoriaRepo;
     private final PedidoService pedidoService;
+    private final MesaRepository mesaRepo; // <-- NUEVA DEPENDENCIA
 
     private Mesa mesaActual;
     private Pedido pedidoActual;
@@ -45,16 +47,19 @@ public class TomaPedidoController extends BaseController {
     @FXML private ListView<DetallePedido> listaItems;
     @FXML private Label lblTotal;
     @FXML private Button btnComandar;
+    @FXML private TextField txtBuscarProducto;
 
     public TomaPedidoController(ProductoRepository productoRepo, PedidoRepository pedidoRepo,
                                 DetallePedidoRepository detalleRepo, MozoRepository mozoRepo,
-                                CategoriaRepository categoriaRepo, PedidoService pedidoService) {
+                                CategoriaRepository categoriaRepo, PedidoService pedidoService,
+                                MesaRepository mesaRepo) { // <-- INYECTAMOS EN CONSTRUCTOR
         this.productoRepo = productoRepo;
         this.pedidoRepo = pedidoRepo;
         this.detalleRepo = detalleRepo;
         this.mozoRepo = mozoRepo;
         this.categoriaRepo = categoriaRepo;
         this.pedidoService = pedidoService;
+        this.mesaRepo = mesaRepo;
     }
 
     @FXML
@@ -66,13 +71,102 @@ public class TomaPedidoController extends BaseController {
         placeholder.setStyle("-fx-text-fill: #95a5a6; -fx-font-size: 14px; -fx-text-alignment: CENTER;");
         listaItems.setPlaceholder(placeholder);
 
-        // Agregamos tus Atajos de Teclado (F5, F4, ESC)
+        // CONFIGURACIÓN DE TECLAS (F2, F3, F4, F5, ESC)
         Platform.runLater(() -> {
             if (btnComandar.getScene() != null) {
+                // F5: Comandar
                 btnComandar.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.F5), this::accionComandar);
+                // F4: Cobrar
                 btnComandar.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.F4), this::accionCobrar);
+                // ESC: Volver
                 btnComandar.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.ESCAPE), this::accionVolver);
+
+                // NUEVO -> F3: Ir al Buscador de Productos
+                btnComandar.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.F3), this::accionFocoBuscador);
+
+                // NUEVO -> F2: Buscar/Cambiar Mesa
+                btnComandar.getScene().getAccelerators().put(new KeyCodeCombination(KeyCode.F2), this::accionBuscarMesa);
             }
+        });
+
+        // 1. DOBLE CLIC NOTAS
+        listaItems.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) editarObservacion();
+        });
+
+        // 2. BUSCADOR TIEMPO REAL
+        if (txtBuscarProducto != null) {
+            txtBuscarProducto.textProperty().addListener((obs, oldVal, newVal) -> {
+                filtrarProductos(newVal);
+            });
+        }
+    }
+
+    // --- ACCIÓN: FOCO AL BUSCADOR (F3) ---
+    @FXML
+    public void accionFocoBuscador() {
+        txtBuscarProducto.requestFocus();
+        txtBuscarProducto.selectAll();
+    }
+
+    // --- ACCIÓN: BUSCAR / CAMBIAR MESA (F2) ---
+    @FXML
+    public void accionBuscarMesa() {
+        TextInputDialog dialog = new TextInputDialog();
+        dialog.setTitle("Cambiar Mesa");
+        dialog.setHeaderText("Saltar a otra mesa");
+        dialog.setContentText("Ingrese N° de Mesa:");
+
+        // Estilo del diálogo
+        DialogPane pane = dialog.getDialogPane();
+        pane.setStyle("-fx-font-family: 'Segoe UI'; -fx-font-size: 14px;");
+
+        dialog.showAndWait().ifPresent(numeroStr -> {
+            try {
+                int numero = Integer.parseInt(numeroStr);
+                Optional<Mesa> mesaOpt = mesaRepo.findByNumero(numero);
+
+                if (mesaOpt.isPresent()) {
+                    setMesa(mesaOpt.get()); // ¡Recarga todo con la nueva mesa!
+                    toast("🔀 Cambiado a Mesa " + numero, lblTituloMesa);
+                } else {
+                    error("Error", "La mesa " + numero + " no existe.");
+                }
+            } catch (NumberFormatException e) {
+                error("Error", "Ingrese un número válido.");
+            }
+        });
+    }
+
+    // --- LÓGICA DE FILTRADO ---
+    private void filtrarProductos(String texto) {
+        if (texto == null || texto.trim().isEmpty()) {
+            cargarProductos(productoRepo.findByActivoTrue());
+            return;
+        }
+        String busqueda = texto.toLowerCase();
+        List<Producto> todos = productoRepo.findByActivoTrue();
+
+        List<Producto> filtrados = todos.stream()
+                .filter(p -> p.getNombre().toLowerCase().contains(busqueda))
+                .collect(Collectors.toList());
+
+        cargarProductos(filtrados);
+    }
+
+    private void editarObservacion() {
+        DetallePedido item = listaItems.getSelectionModel().getSelectedItem();
+        if (item == null) return;
+        TextInputDialog dialog = new TextInputDialog(item.getObservacion() != null ? item.getObservacion() : "");
+        dialog.setTitle("Nota para Cocina/Barra");
+        dialog.setHeaderText("Agregar observación a: " + item.getProducto().getNombre());
+        dialog.setContentText("Nota (ej: Sin sal, A punto):");
+        DialogPane pane = dialog.getDialogPane();
+        pane.setStyle("-fx-font-family: 'Segoe UI'; -fx-font-size: 14px;");
+        dialog.showAndWait().ifPresent(nota -> {
+            item.setObservacion(nota);
+            detalleRepo.save(item);
+            actualizarVistaPedido();
         });
     }
 
@@ -93,12 +187,10 @@ public class TomaPedidoController extends BaseController {
         this.pedidoActual = pedidoRepo.save(nuevo);
     }
 
-    // --- ACCIÓN COMANDAR INTELIGENTE (Solo marcha lo nuevo) ---
     @FXML
     public void accionComandar() {
         if (pedidoActual == null || btnComandar.isDisabled()) return;
 
-        // 1. Filtrar ítems NUEVOS (los que tienen horaMarchar en null)
         List<DetallePedido> detalles = detalleRepo.findByPedido(pedidoActual);
         List<DetallePedido> nuevos = detalles.stream()
                 .filter(d -> d.getHoraMarchar() == null)
@@ -110,28 +202,21 @@ public class TomaPedidoController extends BaseController {
         }
 
         LocalDateTime ahora = LocalDateTime.now();
-        // 2. Detectar si lo nuevo incluye Cocina (Lomo) o solo Barra (Coca)
         boolean hayCocina = nuevos.stream().anyMatch(d -> d.getProducto().isEsCocina());
 
         try {
-            // 3. Marcar hora en los ítems individuales
             for (DetallePedido d : nuevos) {
                 d.setHoraMarchar(ahora);
                 detalleRepo.save(d);
             }
 
-            // 4. Actualizar estado de la Mesa
             if (hayCocina) {
-                // Si hay comida -> Actualizar Comanda (Reloj Rojo).
-                // NO borramos horaEntrega para mantener historial si es un postre.
                 pedidoActual.setHoraComanda(ahora);
                 toast("♨ Marchando a Cocina", btnComandar);
             } else {
-                // Si solo es bebida -> No tocamos tiempos de mesa.
                 toast("🍺 Marchando a Barra", btnComandar);
             }
 
-            // Actualizar última actividad
             pedidoActual.setHoraUltimoProducto(ahora);
             pedidoRepo.save(pedidoActual);
 
@@ -145,22 +230,16 @@ public class TomaPedidoController extends BaseController {
 
     private void actualizarEstadoBotonComandar() {
         if (pedidoActual == null) return;
-
-        // ¿Hay cosas sin marchar?
         boolean hayNuevos = detalleRepo.findByPedido(pedidoActual).stream()
                 .anyMatch(d -> d.getHoraMarchar() == null);
 
         if (hayNuevos) {
-            // Si hay nuevos -> Botón Habilitado
             btnComandar.setDisable(false);
             btnComandar.setText("♨ MARCHAR NUEVOS (F5)");
             btnComandar.setStyle("");
             btnComandar.getStyleClass().add("btn-comandar");
         } else {
-            // Si todo está marchado -> Botón Deshabilitado con Info
             btnComandar.setDisable(true);
-
-            // Lógica para mostrar si está en cocina o comiendo
             boolean cocinaTrabajando = false;
             if (pedidoActual.getHoraComanda() != null) {
                 if (pedidoActual.getHoraEntrega() == null) cocinaTrabajando = true;
@@ -187,8 +266,6 @@ public class TomaPedidoController extends BaseController {
             toast("Selecciona un producto", listaItems);
             return;
         }
-
-        // SEGURIDAD: Solo borrar si es NUEVO (horaMarchar es null)
         if (seleccionado.getHoraMarchar() != null) {
             advertencia("Bloqueado", "Este ítem ya fue marchado.\nNo se puede eliminar.");
             return;
@@ -204,22 +281,17 @@ public class TomaPedidoController extends BaseController {
         if (pedidoActual == null) return;
 
         pedidoService.agregarProducto(pedidoActual.getId(), prod.getId(), 1);
-
-        // No tocamos horaUltimoProducto aquí, eso se hace al comandar para ser precisos
         actualizarVistaPedido();
         actualizarEstadoBotonComandar();
     }
 
     private void actualizarVistaPedido() {
         List<DetallePedido> detalles = detalleRepo.findByPedido(pedidoActual);
-
-        // Ordenar: Primero los viejos, al final los nuevos
         detalles.sort(Comparator.comparing(DetallePedido::getHoraMarchar, Comparator.nullsLast(Comparator.naturalOrder())));
 
         listaItems.getItems().setAll(detalles);
         listaItems.getStyleClass().add("ticket-list");
 
-        // Calcular total
         BigDecimal totalCalculado = BigDecimal.ZERO;
         for (DetallePedido d : detalles) {
             BigDecimal subtotal = d.getPrecioUnitario().multiply(new BigDecimal(d.getCantidad()));
@@ -228,7 +300,6 @@ public class TomaPedidoController extends BaseController {
         lblTotal.setText("TOTAL: $" + totalCalculado);
         if (pedidoActual != null) pedidoActual.setTotal(totalCalculado);
 
-        // VISTA INTELIGENTE (Celdas)
         listaItems.setCellFactory(param -> new ListCell<DetallePedido>() {
             @Override
             protected void updateItem(DetallePedido item, boolean empty) {
@@ -241,22 +312,31 @@ public class TomaPedidoController extends BaseController {
                     boolean esNuevo = item.getHoraMarchar() == null;
                     boolean esCocina = item.getProducto().isEsCocina();
 
-                    // Icono según estado
                     String icono = esNuevo ? "🆕" : (esCocina ? "♨️" : "🍸");
                     Label lblIcono = new Label(icono);
+                    lblIcono.setMinWidth(25);
 
                     Label lblCant = new Label(item.getCantidad() + "x");
                     lblCant.setStyle("-fx-font-weight: bold; -fx-text-fill: #e67e22; -fx-min-width: 25px;");
 
                     Label lblNom = new Label(item.getProducto().getNombre());
-                    Label lblHora = new Label();
+                    VBox vBoxNombre = new VBox(lblNom);
+                    vBoxNombre.setAlignment(Pos.CENTER_LEFT);
 
                     if (esNuevo) {
-                        // Estilo Nuevo (Negro y fuerte)
-                        lblNom.setStyle("-fx-text-fill: #000; -fx-font-weight: bold;");
+                        lblNom.setStyle("-fx-text-fill: #000; -fx-font-weight: bold; -fx-font-size: 13px;");
                     } else {
-                        // Estilo Viejo (Gris y con hora)
                         lblNom.setStyle("-fx-text-fill: #7f8c8d;");
+                    }
+
+                    if (item.getObservacion() != null && !item.getObservacion().trim().isEmpty()) {
+                        Label lblNota = new Label("📝 " + item.getObservacion());
+                        lblNota.setStyle("-fx-text-fill: #c0392b; -fx-font-size: 11px; -fx-font-style: italic;");
+                        vBoxNombre.getChildren().add(lblNota);
+                    }
+
+                    Label lblHora = new Label();
+                    if (!esNuevo && item.getHoraMarchar() != null) {
                         String horaStr = item.getHoraMarchar().format(DateTimeFormatter.ofPattern("HH:mm"));
                         lblHora.setText(horaStr);
                         lblHora.setStyle("-fx-font-size: 10px; -fx-text-fill: #95a5a6;");
@@ -267,7 +347,7 @@ public class TomaPedidoController extends BaseController {
                     Label lblPrecio = new Label(subtotal);
                     lblPrecio.setStyle("-fx-font-weight: bold;");
 
-                    fila.getChildren().addAll(lblIcono, lblCant, lblNom, spacer, lblHora, lblPrecio);
+                    fila.getChildren().addAll(lblIcono, lblCant, vBoxNombre, spacer, lblHora, lblPrecio);
                     setGraphic(fila);
                 }
             }
@@ -314,7 +394,6 @@ public class TomaPedidoController extends BaseController {
         }
     }
 
-    // --- ACCIÓN COBRAR (Sin cambios, tu versión) ---
     @FXML
     public void accionCobrar() {
         actualizarVistaPedido();
