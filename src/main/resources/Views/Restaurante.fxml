@@ -34,6 +34,11 @@
                 <Region HBox.hgrow="ALWAYS" />
 
                 <Separator orientation="VERTICAL" />
+                <Button mnemonicParsing="false" onAction="#abrirReporteMozo"
+                        text="💰 VENTAS MOZO"
+                        style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" />
+
+                <Separator orientation="VERTICAL" />
 
                 <Label text="IR A MESA:" styleClass="label-titulo" />
 

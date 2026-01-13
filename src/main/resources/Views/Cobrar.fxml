@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.control.ToggleButton?>
+<?import javafx.scene.control.ToggleGroup?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<VBox alignment="TOP_CENTER" prefHeight="600.0" prefWidth="500.0" spacing="20.0"
+      style="-fx-background-color: -color-bg-default;"
+      xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="gastronomia.sistemaGastronomico.controller.CobrarController">
+
+    <padding>
+        <Insets bottom="30.0" left="30.0" right="30.0" top="30.0" />
+    </padding>
+
+    <children>
+        <Label fx:id="lblTitulo" text="COBRAR MESA #">
+            <font>
+                <Font name="System Bold" size="20.0" />
+            </font>
+        </Label>
+
+        <Separator prefWidth="200.0" />
+
+        <VBox alignment="CENTER" spacing="5.0" style="-fx-background-color: -color-bg-subtle; -fx-background-radius: 10; -fx-padding: 20;">
+            <children>
+                <Label text="TOTAL A PAGAR" textFill="#7f8c8d">
+                    <font>
+                        <Font size="14.0" />
+                    </font>
+                </Label>
+                <Label fx:id="lblTotal" style="-fx-text-fill: -color-accent-fg;">
+                    <font>
+                        <Font name="System Bold" size="48.0" />
+                    </font>
+                </Label>
+            </children>
+        </VBox>
+
+        <VBox spacing="10.0">
+            <children>
+                <Label text="Forma de Pago:" style="-fx-font-weight: bold;" />
+                <HBox spacing="10.0">
+                    <children>
+                        <ToggleButton fx:id="btnEfectivo" mnemonicParsing="false" selected="true" text="💵 Efectivo" HBox.hgrow="ALWAYS" maxWidth="Infinity">
+                            <toggleGroup>
+                                <ToggleGroup fx:id="grupoPago" />
+                            </toggleGroup>
+                            <font>
+                                <Font size="14.0" />
+                            </font>
+                        </ToggleButton>
+                        <ToggleButton fx:id="btnTarjeta" mnemonicParsing="false" text="💳 Tarjeta" toggleGroup="$grupoPago" HBox.hgrow="ALWAYS" maxWidth="Infinity">
+                            <font>
+                                <Font size="14.0" />
+                            </font>
+                        </ToggleButton>
+                        <ToggleButton fx:id="btnQR" mnemonicParsing="false" text="📱 QR / MP" toggleGroup="$grupoPago" HBox.hgrow="ALWAYS" maxWidth="Infinity">
+                            <font>
+                                <Font size="14.0" />
+                            </font>
+                        </ToggleButton>
+                    </children>
+                </HBox>
+            </children>
+        </VBox>
+
+        <Separator prefWidth="200.0" />
+
+        <VBox spacing="20.0">
+            <children>
+
+                <HBox alignment="CENTER_LEFT" spacing="10.0" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 5;">
+                    <children>
+                        <Label text="Descuento:" style="-fx-font-size: 14px;" />
+                        <TextField fx:id="txtDescuentoPorc" promptText="0" prefWidth="60.0" alignment="CENTER" text="0"/>
+
+                        <Label text="\%" style="-fx-font-weight: bold;"/>
+
+                        <Region HBox.hgrow="ALWAYS" />
+
+                        <Label fx:id="lblMontoDescuento" text="-$0.00" textFill="#e74c3c">
+                            <font>
+                                <Font name="System Bold" size="14.0" />
+                            </font>
+                        </Label>
+                    </children>
+                </HBox>
+
+                <HBox alignment="CENTER_LEFT" spacing="10.0">
+                    <children>
+                        <Label text="Abona con: $" style="-fx-font-size: 18px;" />
+                        <TextField fx:id="txtAbonaCon" promptText="Monto" style="-fx-font-size: 18px;" HBox.hgrow="ALWAYS" />
+                    </children>
+                </HBox>
+
+                <HBox alignment="CENTER_RIGHT" spacing="10.0" style="-fx-background-color: -color-success-subtle; -fx-padding: 15; -fx-background-radius: 8;">
+                    <children>
+                        <Label text="VUELTO:" style="-fx-font-size: 20px; -fx-font-weight: bold;" />
+                        <Label fx:id="lblVuelto" textFill="#2ecc71">
+                            <font>
+                                <Font name="System Bold" size="32.0" />
+                            </font>
+                        </Label>
+                    </children>
+                </HBox>
+            </children>
+        </VBox>
+
+        <Region VBox.vgrow="ALWAYS" />
+
+        <HBox spacing="15.0">
+            <children>
+                <Button cancelButton="true" mnemonicParsing="false" onAction="#cerrar" prefHeight="55.0" prefWidth="130.0" text="Cancelar" style="-fx-font-size: 14px;" />
+                <Button defaultButton="true" mnemonicParsing="false" onAction="#finalizarVenta" prefHeight="55.0" text="✅ CONFIRMAR COBRO" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-background-color: -color-accent-emphasis; -fx-text-fill: white;" />
+            </children>
+        </HBox>
+
+    </children>
+</VBox>

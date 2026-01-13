@@ -19,7 +19,7 @@ import javafx.scene.control.*;
 import javafx.scene.input.KeyCode;
 import javafx.scene.input.KeyCodeCombination;
 import javafx.scene.layout.FlowPane;
-import javafx.scene.layout.HBox; // Importante: Coincide con tu FXML
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
@@ -41,9 +41,8 @@ public class RestauranteController extends BaseController {
     private final PedidoService pedidoService;
     private final ApplicationContext context;
 
-    // --- VINCULACIÓN CON FXML ---
-    @FXML private HBox contenedorSectores; // En tu FXML es un HBox
-    @FXML private FlowPane contenedorMesas; // En tu FXML es un FlowPane
+    @FXML private HBox contenedorSectores;
+    @FXML private FlowPane contenedorMesas;
     @FXML private TextField txtBuscarMesa;
 
     private Sector sectorActual;
@@ -62,7 +61,6 @@ public class RestauranteController extends BaseController {
     public void initialize() {
         cargarSectores();
 
-        // Refresco automático (cada 60s)
         Timeline timeline = new Timeline(
                 new KeyFrame(Duration.seconds(60), e -> {
                     if (sectorActual != null) cargarMesasDelSector(sectorActual);
@@ -71,7 +69,6 @@ public class RestauranteController extends BaseController {
         timeline.setCycleCount(Timeline.INDEFINITE);
         timeline.play();
 
-        // --- CONFIGURACIÓN DE TECLA F2 (LLAMAR MESA) ---
         Platform.runLater(() -> {
             if (contenedorMesas.getScene() != null) {
                 contenedorMesas.getScene().getAccelerators().put(
@@ -82,7 +79,6 @@ public class RestauranteController extends BaseController {
         });
     }
 
-    // --- ACCIÓN: BUSCAR MESA RAPIDA (Enter en el textfield o botón GO) ---
     @FXML
     public void buscarMesaRapida() {
         String texto = txtBuscarMesa.getText().trim();
@@ -101,7 +97,6 @@ public class RestauranteController extends BaseController {
         }
     }
 
-    // --- ACCIÓN F2: LLAMAR MESA (Teclado) ---
     private void accionF2AbrirMesa() {
         TextInputDialog dialog = new TextInputDialog();
         dialog.setTitle("Llamar Mesa");
@@ -126,7 +121,6 @@ public class RestauranteController extends BaseController {
         });
     }
 
-    // --- CARGA DE DATOS ---
     private void cargarSectores() {
         contenedorSectores.getChildren().clear();
         List<Sector> sectores = sectorRepo.findAll();
@@ -185,7 +179,6 @@ public class RestauranteController extends BaseController {
         }
     }
 
-    // --- GRÁFICO INTELIGENTE (DOBLE ESTADO) ---
     private VBox crearGraficoMesa(int numero, String estado, int personas, Pedido pedido) {
         Label lblNum = new Label(String.valueOf(numero));
         lblNum.getStyleClass().add("mesa-numero");
@@ -316,7 +309,6 @@ public class RestauranteController extends BaseController {
         } catch (Exception e) { e.printStackTrace(); }
     }
 
-    // --- ACCIÓN AGREGAR MESA (Método que faltaba) ---
     @FXML
     public void nuevaMesaEnSectorActual() {
         if (sectorActual == null) {
@@ -336,7 +328,26 @@ public class RestauranteController extends BaseController {
         }
     }
 
-    // --- MÉTODOS AUXILIARES ---
+    // --- NUEVO MÉTODO PARA ABRIR REPORTE ---
+    @FXML
+    public void abrirReporteMozo() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/Views/ReporteMozo.fxml"));
+            // IMPORTANTE: context::getBean para inyectar repositorios
+            loader.setControllerFactory(context::getBean);
+            Parent root = loader.load();
+
+            Stage stage = new Stage();
+            stage.setTitle("Reporte de Ventas por Mozo");
+            stage.setScene(new Scene(root));
+            stage.initModality(Modality.APPLICATION_MODAL);
+            stage.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+            error("Error", "No se pudo abrir el reporte.");
+        }
+    }
+
     private void moverMesa(Mesa m) {}
     private void editarMesa(Mesa m) {}
 

@@ -3,13 +3,19 @@ package gastronomia.sistemaGastronomico.service;
 import gastronomia.sistemaGastronomico.dao.DetallePedidoRepository;
 import gastronomia.sistemaGastronomico.dao.PedidoRepository;
 import gastronomia.sistemaGastronomico.dao.ProductoRepository;
+// import gastronomia.sistemaGastronomico.dao.MovimientoCajaRepository; // <--- DESCOMENTAR SI USAS CAJA
+// import gastronomia.sistemaGastronomico.model.MovimientoCaja;         // <--- DESCOMENTAR SI USAS CAJA
 import gastronomia.sistemaGastronomico.model.DetallePedido;
+import gastronomia.sistemaGastronomico.model.Mozo;
 import gastronomia.sistemaGastronomico.model.Pedido;
 import gastronomia.sistemaGastronomico.model.Producto;
 import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,55 +25,42 @@ public class PedidoService {
     private final PedidoRepository pedidoRepo;
     private final ProductoRepository productoRepo;
     private final DetallePedidoRepository detalleRepo;
+    // private final MovimientoCajaRepository cajaRepo; // <--- INYECTAR ESTO
 
     public PedidoService(PedidoRepository pedidoRepo,
                          ProductoRepository productoRepo,
-                         DetallePedidoRepository detalleRepo) {
+                         DetallePedidoRepository detalleRepo
+            /*, MovimientoCajaRepository cajaRepo*/) { // <--- AGREGAR AL CONSTRUCTOR
         this.pedidoRepo = pedidoRepo;
         this.productoRepo = productoRepo;
         this.detalleRepo = detalleRepo;
+        // this.cajaRepo = cajaRepo;
     }
 
-    // --- AGREGAR PRODUCTO ---
     public void agregarProducto(Long idPedido, Long idProducto, Integer cantidad) {
-        Pedido pedido = pedidoRepo.findById(idPedido)
-                .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
-        Producto producto = productoRepo.findById(idProducto)
-                .orElseThrow(() -> new RuntimeException("Producto no encontrado"));
+        Pedido pedido = pedidoRepo.findById(idPedido).orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
+        Producto producto = productoRepo.findById(idProducto).orElseThrow(() -> new RuntimeException("Producto no encontrado"));
 
-        // 1. OBTENER TODOS LOS DETALLES DEL PEDIDO
         List<DetallePedido> detalles = detalleRepo.findByPedido(pedido);
-
-        // 2. BUSCAR SI EXISTE UNA LÍNEA "PENDIENTE" (horaMarchar == null) PARA ESTE PRODUCTO
-        // Si el producto ya se marchó, horaMarchar tendrá fecha y NO entrará aquí.
         Optional<DetallePedido> detallePendiente = detalles.stream()
                 .filter(d -> d.getProducto().getId().equals(idProducto) && d.getHoraMarchar() == null)
                 .findFirst();
 
         if (detallePendiente.isPresent()) {
-            // CASO A: Ya existe una línea NUEVA sin marchar -> SUMAMOS CANTIDAD
-            // Ej: Tenía 1 Coca nueva y agrego otra -> Ahora son 2 Cocas nuevas.
             DetallePedido d = detallePendiente.get();
             d.setCantidad(d.getCantidad() + cantidad);
             detalleRepo.save(d);
         } else {
-            // CASO B: No existe línea o las que existen YA MARCHARON -> CREAMOS NUEVA LÍNEA
-            // Ej: Ya marché 2 Lomos. Agrego 1 Lomo más.
-            // El sistema creará una línea aparte para ese nuevo Lomo (horaMarchar = null).
             DetallePedido nuevo = new DetallePedido();
             nuevo.setPedido(pedido);
             nuevo.setProducto(producto);
             nuevo.setCantidad(cantidad);
             nuevo.setPrecioUnitario(producto.getPrecioActual());
-            // horaMarchar nace nulo automáticamente
             detalleRepo.save(nuevo);
         }
-
-        // Opcional: Recalcular total del pedido aquí si tu sistema lo requiere
         recalcularTotal(pedido);
     }
 
-    // Método auxiliar (si no lo tienes, agrégalo para mantener el total sincronizado)
     private void recalcularTotal(Pedido pedido) {
         BigDecimal total = detalleRepo.findByPedido(pedido).stream()
                 .map(d -> d.getPrecioUnitario().multiply(new BigDecimal(d.getCantidad())))
@@ -76,14 +69,10 @@ public class PedidoService {
         pedidoRepo.save(pedido);
     }
 
-    // --- QUITAR PRODUCTO ---
     @Transactional
     public void quitarProducto(Long idDetalle) {
-        DetallePedido detalle = detalleRepo.findById(idDetalle)
-                .orElseThrow(() -> new RuntimeException("Detalle no encontrado"));
-
+        DetallePedido detalle = detalleRepo.findById(idDetalle).orElseThrow(() -> new RuntimeException("Detalle no encontrado"));
         Pedido pedido = detalle.getPedido();
-        BigDecimal precio = detalle.getPrecioUnitario();
 
         if (detalle.getCantidad() > 1) {
             detalle.setCantidad(detalle.getCantidad() - 1);
@@ -91,32 +80,26 @@ public class PedidoService {
         } else {
             detalleRepo.delete(detalle);
         }
-
-        BigDecimal nuevoTotal = pedido.getTotal().subtract(precio);
-        if (nuevoTotal.compareTo(BigDecimal.ZERO) < 0) nuevoTotal = BigDecimal.ZERO;
-
-        pedido.setTotal(nuevoTotal);
-        pedidoRepo.save(pedido);
+        recalcularTotal(pedido);
     }
 
-    // --- CERRAR MESA / COBRAR (SOLUCIÓN HISTORIAL) ---
+    // --- COBRAR PEDIDO (MÉTODO CLAVE) ---
     @Transactional
     public void cobrarPedido(Long idPedido, String metodoPago, BigDecimal totalFinal) {
-        // 1. Buscar Pedido
         Pedido pedido = pedidoRepo.findById(idPedido)
                 .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
 
-        // 2. Validar que no esté cerrado ya
-        if ("CERRADO".equals(pedido.getEstado())) {
-            throw new RuntimeException("Esta mesa ya fue cobrada anteriormente.");
-        }
-
-        // 3. Actualizar Datos
+        // 1. ACTUALIZAR PEDIDO
         pedido.setMetodoPago(metodoPago);
         pedido.setTotal(totalFinal);
-        pedido.setEstado("CERRADO"); // Esto hace que aparezca en el historial
+        pedido.setEstado("CERRADO");
 
-        // 4. Descontar Stock
+        // IMPORTANTE: Actualizamos la fecha al momento del cobro
+        // Si no haces esto, la venta queda con fecha de "apertura" y puede no salir en el reporte de hoy.
+        pedido.setFecha(LocalDate.now());
+        pedido.setHora(LocalTime.now());
+
+        // 2. DESCONTAR STOCK
         List<DetallePedido> detalles = detalleRepo.findByPedido(pedido);
         for (DetallePedido det : detalles) {
             Producto prod = det.getProducto();
@@ -125,39 +108,55 @@ public class PedidoService {
             productoRepo.save(prod);
         }
 
-        // 5. Guardar Cambios
+        // 3. GUARDAR EL PEDIDO CERRADO
         pedidoRepo.save(pedido);
-        System.out.println("✅ Venta CERRADA y guardada: Mesa " + pedido.getMesa().getNumero());
+
+        // 4. (OPCIONAL) GENERAR MOVIMIENTO DE CAJA
+        // Si tu pantalla de Ventas lee de "MovimientoCaja", descomenta esto y ajusta el modelo:
+        /*
+        MovimientoCaja mov = new MovimientoCaja();
+        mov.setFecha(LocalDateTime.now());
+        mov.setTipoMovimiento("INGRESO"); // o "VENTA"
+        mov.setConcepto("Venta Mesa " + pedido.getMesa().getNumero());
+        mov.setMonto(totalFinal);
+        mov.setFormaPago(metodoPago);
+        mov.setUsuario("Sistema"); // O el mozo
+        cajaRepo.save(mov);
+        */
+
+        System.out.println("✅ Venta registrada: Mesa " + pedido.getMesa().getNumero() + " ($" + totalFinal + ")");
     }
 
-    // Método legacy por compatibilidad (si se usa en otro lado)
     @Transactional
     public void cerrarMesa(Long idPedido) {
-        Pedido pedido = pedidoRepo.findById(idPedido).orElseThrow();
-        pedido.setEstado("CERRADO");
-        pedidoRepo.save(pedido);
+        cobrarPedido(idPedido, "Efectivo", BigDecimal.ZERO);
     }
 
-
-
-    // --- MARCAR COMIDA ENTREGADA ---
     @Transactional
     public void marcarEntrega(Long idPedido) {
-        Pedido pedido = pedidoRepo.findById(idPedido)
-                .orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
-
-        if (pedido.getHoraComanda() == null) {
-            throw new RuntimeException("¡No se puede entregar algo que no se ha comandado!");
+        Pedido pedido = pedidoRepo.findById(idPedido).orElseThrow(() -> new RuntimeException("Pedido no encontrado"));
+        if (pedido.getHoraEntrega() == null) {
+            pedido.setHoraEntrega(java.time.LocalDateTime.now());
+            pedidoRepo.save(pedido);
         }
+    }
 
-        // Si ya estaba entregado, no hacemos nada (o actualizamos la hora, según prefieras)
-        if (pedido.getHoraEntrega() != null) {
-            throw new RuntimeException("El pedido ya figura como entregado.");
+    public String generarReporteMozo(Mozo mozo) {
+        List<Object[]> resultados = pedidoRepo.obtenerTotalesPorMozo(mozo, LocalDate.now());
+        if (resultados.isEmpty()) return "Sin ventas hoy para " + mozo.getNombre();
+
+        StringBuilder sb = new StringBuilder();
+        BigDecimal granTotal = BigDecimal.ZERO;
+
+        sb.append("REPORTE: ").append(mozo.getNombre()).append("\n------------------\n");
+        for (Object[] fila : resultados) {
+            String metodo = (String) fila[0];
+            BigDecimal total = (BigDecimal) fila[1];
+            if (metodo == null) metodo = "Sin definir";
+            sb.append(String.format("%-15s : $%s\n", metodo, total));
+            granTotal = granTotal.add(total);
         }
-
-        pedido.setHoraEntrega(java.time.LocalDateTime.now());
-        pedidoRepo.save(pedido);
-
-        System.out.println("🍽 Pedido entregado: Mesa " + pedido.getMesa().getNumero());
+        sb.append("------------------\nTOTAL: $").append(granTotal);
+        return sb.toString();
     }
 }

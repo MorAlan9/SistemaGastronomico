@@ -76,7 +76,7 @@ public class AbrirMesaController extends BaseController { // <--- 1. HERENCIA AP
             pedido.setMesa(mesaSeleccionada);
             pedido.setMozo(mozo);
             pedido.setComensales(spinnerPersonas.getValue());
-            pedido.setComentarios(txtComentario.getText());
+
             pedido.setFecha(LocalDate.now());
             pedido.setHora(LocalTime.now());
             pedido.setEstado("ABIERTO");
