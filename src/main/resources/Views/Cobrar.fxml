@@ -13,7 +13,7 @@
 <?import javafx.scene.text.Font?>
 
 <VBox alignment="TOP_CENTER" prefHeight="600.0" prefWidth="500.0" spacing="20.0"
-      style="-fx-background-color: -color-bg-default;"
+      style="-fx-background-color: white;"
       xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
       fx:controller="gastronomia.sistemaGastronomico.controller.CobrarController">
 
@@ -30,14 +30,14 @@
 
         <Separator prefWidth="200.0" />
 
-        <VBox alignment="CENTER" spacing="5.0" style="-fx-background-color: -color-bg-subtle; -fx-background-radius: 10; -fx-padding: 20;">
+        <VBox alignment="CENTER" spacing="5.0" style="-fx-background-color: #ecf0f1; -fx-background-radius: 10; -fx-padding: 20;">
             <children>
                 <Label text="TOTAL A PAGAR" textFill="#7f8c8d">
                     <font>
                         <Font size="14.0" />
                     </font>
                 </Label>
-                <Label fx:id="lblTotal" style="-fx-text-fill: -color-accent-fg;">
+                <Label fx:id="lblTotal" textFill="#2c3e50">
                     <font>
                         <Font name="System Bold" size="48.0" />
                     </font>
@@ -50,24 +50,15 @@
                 <Label text="Forma de Pago:" style="-fx-font-weight: bold;" />
                 <HBox spacing="10.0">
                     <children>
-                        <ToggleButton fx:id="btnEfectivo" mnemonicParsing="false" selected="true" text="💵 Efectivo" HBox.hgrow="ALWAYS" maxWidth="Infinity">
+                        <ToggleButton fx:id="btnEfectivo" mnemonicParsing="false" selected="true" text="💵 Efectivo" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-cursor: hand; -fx-font-size: 14;">
                             <toggleGroup>
                                 <ToggleGroup fx:id="grupoPago" />
                             </toggleGroup>
-                            <font>
-                                <Font size="14.0" />
-                            </font>
                         </ToggleButton>
-                        <ToggleButton fx:id="btnTarjeta" mnemonicParsing="false" text="💳 Tarjeta" toggleGroup="$grupoPago" HBox.hgrow="ALWAYS" maxWidth="Infinity">
-                            <font>
-                                <Font size="14.0" />
-                            </font>
-                        </ToggleButton>
-                        <ToggleButton fx:id="btnQR" mnemonicParsing="false" text="📱 QR / MP" toggleGroup="$grupoPago" HBox.hgrow="ALWAYS" maxWidth="Infinity">
-                            <font>
-                                <Font size="14.0" />
-                            </font>
-                        </ToggleButton>
+
+                        <ToggleButton fx:id="btnTarjeta" mnemonicParsing="false" text="💳 Tarjeta" toggleGroup="$grupoPago" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-cursor: hand; -fx-font-size: 14;" />
+
+                        <ToggleButton fx:id="btnQR" mnemonicParsing="false" text="📱 QR / MP" toggleGroup="$grupoPago" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-cursor: hand; -fx-font-size: 14;" />
                     </children>
                 </HBox>
             </children>
@@ -78,16 +69,15 @@
         <VBox spacing="20.0">
             <children>
 
-                <HBox alignment="CENTER_LEFT" spacing="10.0" style="-fx-background-color: -color-bg-subtle; -fx-padding: 10; -fx-background-radius: 5;">
+                <HBox alignment="CENTER_LEFT" spacing="10.0" style="-fx-background-color: #f8f9fa; -fx-padding: 10; -fx-background-radius: 5; -fx-border-color: #ecf0f1; -fx-border-radius: 5;">
                     <children>
                         <Label text="Descuento:" style="-fx-font-size: 14px;" />
-                        <TextField fx:id="txtDescuentoPorc" promptText="0" prefWidth="60.0" alignment="CENTER" text="0"/>
-
+                        <TextField fx:id="txtDescuentoPorc" promptText="0" prefWidth="60.0" alignment="CENTER" text="0" style="-fx-font-size: 14px;"/>
                         <Label text="\%" style="-fx-font-weight: bold;"/>
 
                         <Region HBox.hgrow="ALWAYS" />
 
-                        <Label fx:id="lblMontoDescuento" text="-$0.00" textFill="#e74c3c">
+                        <Label fx:id="lblMontoDescuento" text="-$0.00" textFill="#e74c3c" visible="false">
                             <font>
                                 <Font name="System Bold" size="14.0" />
                             </font>
@@ -102,10 +92,10 @@
                     </children>
                 </HBox>
 
-                <HBox alignment="CENTER_RIGHT" spacing="10.0" style="-fx-background-color: -color-success-subtle; -fx-padding: 15; -fx-background-radius: 8;">
+                <HBox alignment="CENTER_RIGHT" spacing="10.0" style="-fx-background-color: #e8f8f5; -fx-padding: 15; -fx-background-radius: 8; -fx-border-color: #d1f2eb; -fx-border-radius: 8;">
                     <children>
-                        <Label text="VUELTO:" style="-fx-font-size: 20px; -fx-font-weight: bold;" />
-                        <Label fx:id="lblVuelto" textFill="#2ecc71">
+                        <Label text="VUELTO:" style="-fx-font-size: 20px; -fx-font-weight: bold;" textFill="#27ae60" />
+                        <Label fx:id="lblVuelto" textFill="#27ae60">
                             <font>
                                 <Font name="System Bold" size="32.0" />
                             </font>
@@ -119,8 +109,9 @@
 
         <HBox spacing="15.0">
             <children>
-                <Button cancelButton="true" mnemonicParsing="false" onAction="#cerrar" prefHeight="55.0" prefWidth="130.0" text="Cancelar" style="-fx-font-size: 14px;" />
-                <Button defaultButton="true" mnemonicParsing="false" onAction="#finalizarVenta" prefHeight="55.0" text="✅ CONFIRMAR COBRO" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-background-color: -color-accent-emphasis; -fx-text-fill: white;" />
+                <Button cancelButton="true" mnemonicParsing="false" onAction="#cerrar" prefHeight="55.0" prefWidth="130.0" text="Cancelar" style="-fx-font-size: 14px; -fx-cursor: hand;" />
+
+                <Button defaultButton="true" mnemonicParsing="false" onAction="#finalizarVenta" prefHeight="55.0" text="✅ CONFIRMAR COBRO" HBox.hgrow="ALWAYS" maxWidth="Infinity" style="-fx-font-size: 16px; -fx-font-weight: bold; -fx-background-color: #27ae60; -fx-text-fill: white; -fx-cursor: hand;" />
             </children>
         </HBox>
 

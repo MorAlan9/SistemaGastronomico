@@ -6,6 +6,7 @@ import gastronomia.sistemaGastronomico.service.PedidoService;
 import javafx.animation.PauseTransition;
 import javafx.application.Platform;
 import javafx.fxml.FXML;
+import java.util.ArrayList;
 import javafx.fxml.FXMLLoader;
 import javafx.geometry.Bounds;
 import javafx.scene.Node; // IMPORTANTE: Usar Node en lugar de Control
@@ -264,6 +265,12 @@ public class TomaPedidoController {
     @FXML
     public void accionCobrar() {
         if (pedidoActual == null) return;
+
+        // --- CORRECCIÓN AQUÍ ---
+        // 1. PRIMERO guardamos lo que el usuario seleccionó (antes de que se borre)
+        List<DetallePedido> seleccionados = new ArrayList<>(listaItems.getSelectionModel().getSelectedItems());
+
+        // 2. AHORA SÍ actualizamos la vista/guardamos cambios (esto limpiará la selección visual, pero ya tenemos los datos en la variable 'seleccionados')
         actualizarVistaPedido();
 
         try {
@@ -272,7 +279,17 @@ public class TomaPedidoController {
             Parent root = loader.load();
 
             CobrarController controller = loader.getController();
-            controller.setPedido(pedidoActual);
+
+            // --- LÓGICA DE SELECCIÓN ---
+
+            // 3. Si la lista 'seleccionados' (que guardamos al principio) está vacía, es cobro total.
+            if (seleccionados.isEmpty()) {
+                seleccionados.addAll(detalleRepo.findByPedido(pedidoActual));
+            }
+
+            // 4. Enviamos la lista
+            controller.iniciarCobro(pedidoActual, seleccionados);
+            // ---------------------------
 
             Stage stage = new Stage();
             stage.setTitle("Cobrar Mesa " + mesaActual.getNumero());
@@ -281,16 +298,20 @@ public class TomaPedidoController {
 
             stage.setOnHidden(e -> {
                 pedidoRepo.findById(pedidoActual.getId()).ifPresent(p -> {
-                    if ("CERRADO".equals(p.getEstado())) cerrarVentana();
-                    else actualizarVistaPedido();
+                    if ("CERRADO".equals(p.getEstado())) {
+                        cerrarVentana();
+                    } else {
+                        actualizarVistaPedido();
+                    }
                 });
             });
             stage.showAndWait();
+
         } catch (Exception e) {
-            mostrarAlerta("Error", "No se pudo abrir cobro: " + e.getMessage());
+            mostrarAlerta("Error", "No se pudo abrir la ventana de cobro: " + e.getMessage());
+            e.printStackTrace();
         }
     }
-
     @FXML
     public void accionEliminarItem() {
         DetallePedido item = listaItems.getSelectionModel().getSelectedItem();

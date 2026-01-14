@@ -1,5 +1,8 @@
 package gastronomia.sistemaGastronomico.controller;
 
+import gastronomia.sistemaGastronomico.dao.DetallePedidoRepository; // IMPORTANTE
+import gastronomia.sistemaGastronomico.dao.PedidoRepository;       // IMPORTANTE
+import gastronomia.sistemaGastronomico.model.DetallePedido;
 import gastronomia.sistemaGastronomico.model.Pedido;
 import gastronomia.sistemaGastronomico.service.PedidoService;
 import javafx.application.Platform;
@@ -12,11 +15,16 @@ import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.time.LocalDate;
+import java.time.LocalTime;
+import java.util.List;
 
 @Component
 public class CobrarController {
 
     private final PedidoService pedidoService;
+    private final PedidoRepository pedidoRepo;
+    private final DetallePedidoRepository detalleRepo;
 
     @FXML private Label lblTitulo;
     @FXML private Label lblTotal;
@@ -30,11 +38,17 @@ public class CobrarController {
     @FXML private Label lblVuelto;
 
     private Pedido pedidoActual;
+    private List<DetallePedido> itemsAPagar;
     private BigDecimal totalOriginal = BigDecimal.ZERO;
     private BigDecimal totalFinal = BigDecimal.ZERO;
 
-    public CobrarController(PedidoService pedidoService) {
+    // Inyectamos los repositorios necesarios para hacer el movimiento de items
+    public CobrarController(PedidoService pedidoService,
+                            PedidoRepository pedidoRepo,
+                            DetallePedidoRepository detalleRepo) {
         this.pedidoService = pedidoService;
+        this.pedidoRepo = pedidoRepo;
+        this.detalleRepo = detalleRepo;
     }
 
     @FXML
@@ -42,7 +56,6 @@ public class CobrarController {
         if (txtAbonaCon != null) txtAbonaCon.textProperty().addListener((obs, oldVal, newVal) -> calcularVuelto());
         if (txtDescuentoPorc != null) txtDescuentoPorc.textProperty().addListener((obs, oldVal, newVal) -> recalcularTotal());
 
-        // UX INTELIGENTE
         grupoPago.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null) return;
             ToggleButton btn = (ToggleButton) newVal;
@@ -50,7 +63,6 @@ public class CobrarController {
             if (btn == btnTarjeta || btn == btnQR) {
                 txtAbonaCon.setText(totalFinal.toString());
                 txtAbonaCon.setEditable(false);
-                // IMPORTANTE: Quitamos el foco del botón para que no interfiera
                 lblTotal.requestFocus();
             } else {
                 txtAbonaCon.setText("");
@@ -60,15 +72,28 @@ public class CobrarController {
         });
     }
 
-    public void setPedido(Pedido pedido) {
+    public void iniciarCobro(Pedido pedido, List<DetallePedido> itemsSeleccionados) {
         this.pedidoActual = pedido;
-        this.totalOriginal = pedido.getTotal() != null ? pedido.getTotal() : BigDecimal.ZERO;
+        this.itemsAPagar = itemsSeleccionados;
+
+        // 1. Calcular suma SOLAMENTE de los items recibidos
+        this.totalOriginal = BigDecimal.ZERO;
+
+        if (itemsAPagar != null && !itemsAPagar.isEmpty()) {
+            for (DetallePedido d : itemsAPagar) {
+                BigDecimal subtotal = d.getPrecioUnitario().multiply(new BigDecimal(d.getCantidad()));
+                this.totalOriginal = this.totalOriginal.add(subtotal);
+            }
+        } else {
+            // Fallback por seguridad
+            this.totalOriginal = pedido.getTotal() != null ? pedido.getTotal() : BigDecimal.ZERO;
+        }
+
         lblTitulo.setText("MESA " + pedido.getMesa().getNumero());
         txtDescuentoPorc.setText("0");
         recalcularTotal();
         Platform.runLater(() -> txtAbonaCon.requestFocus());
 
-        // --- SOLUCIÓN GLOBAL PARA TECLA ENTER ---
         Platform.runLater(() -> {
             if (lblTitulo.getScene() != null) {
                 lblTitulo.getScene().addEventHandler(KeyEvent.KEY_PRESSED, event -> {
@@ -137,12 +162,50 @@ public class CobrarController {
             if (textoBoton.toLowerCase().contains("tarjeta")) metodoLimpio = "Tarjeta";
             else if (textoBoton.toLowerCase().contains("qr")) metodoLimpio = "QR / MP";
 
-            pedidoService.cobrarPedido(pedidoActual.getId(), metodoLimpio, totalFinal);
+            // --- LÓGICA DE COBRO INTELIGENTE ---
+
+            // 1. Averiguar si estamos pagando TODO el pedido o solo una PARTE
+            long totalItemsEnMesa = detalleRepo.countByPedido(pedidoActual);
+            boolean esPagoTotal = (itemsAPagar == null) || (itemsAPagar.size() >= totalItemsEnMesa);
+
+            if (esPagoTotal) {
+                // CASO 1: Pago Total -> Cerramos el pedido actual normalmente
+                System.out.println("Pago Total detectado.");
+                pedidoService.cobrarPedido(pedidoActual.getId(), metodoLimpio, totalFinal);
+
+            } else {
+                // CASO 2: Pago Parcial (Split)
+                System.out.println("Pago Parcial detectado. Dividiendo items...");
+
+                // A) Crear un nuevo pedido "Factura" que nace ya cerrado
+                Pedido pedidoFactura = new Pedido();
+                pedidoFactura.setMesa(pedidoActual.getMesa());
+                pedidoFactura.setMozo(pedidoActual.getMozo()); // Mismo mozo
+                pedidoFactura.setFecha(LocalDate.now());
+                pedidoFactura.setHora(LocalTime.now());
+                pedidoFactura.setEstado("CERRADO"); // Nace cerrado
+                pedidoFactura.setTotal(totalFinal);
+                pedidoFactura.setMetodoPago(metodoLimpio);
+
+                // Guardamos el pedido nuevo para tener ID
+                Pedido pedidoGuardado = pedidoRepo.save(pedidoFactura);
+
+                // B) Mover los items seleccionados del pedido Viejo al Nuevo
+                for (DetallePedido item : itemsAPagar) {
+                    item.setPedido(pedidoGuardado); // Cambiamos de dueño
+                    detalleRepo.save(item);
+                }
+
+                // C) Recalcular el total del pedido original (que sigue ABIERTO)
+                // (Esto se hace visualmente al volver, pero es bueno actualizarlo en BD si lo guardas allí)
+                // Opcional: pedidoService.recalcularTotal(pedidoActual.getId());
+            }
+
             cerrar();
 
         } catch (Exception e) {
             e.printStackTrace();
-            Alert error = new Alert(Alert.AlertType.ERROR, "Error: " + e.getMessage());
+            Alert error = new Alert(Alert.AlertType.ERROR, "Error al cobrar: " + e.getMessage());
             error.show();
         }
     }
