@@ -4,6 +4,7 @@
 <?import javafx.scene.control.Button?>
 <?import javafx.scene.control.DatePicker?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.Tab?>
 <?import javafx.scene.control.TabPane?>
 <?import javafx.scene.control.TableColumn?>
@@ -28,13 +29,20 @@
                     <content>
                         <VBox spacing="10.0">
                             <padding><Insets top="10.0" /></padding>
+
                             <HBox alignment="CENTER_LEFT" spacing="10.0" style="-fx-background-color: #f8f9fa; -fx-padding: 10; -fx-background-radius: 5;">
                                 <Label text="Desde:" textFill="#7f8c8d" />
                                 <DatePicker fx:id="dpDesde" prefWidth="120.0" />
                                 <Label text="Hasta:" textFill="#7f8c8d" />
                                 <DatePicker fx:id="dpHasta" prefWidth="120.0" />
-                                <Button onAction="#filtrar" style="-fx-background-color: #3498db; -fx-text-fill: white;" text="🔍 BUSCAR" />
-                                <Button onAction="#limpiarFiltros" style="-fx-background-color: #95a5a6; -fx-text-fill: white;" text="🔄 VER TODO" />
+
+                                <Button onAction="#filtrar" style="-fx-background-color: #3498db; -fx-text-fill: white; -fx-cursor: hand;" text="🔍 BUSCAR" />
+                                <Button onAction="#limpiarFiltros" style="-fx-background-color: #95a5a6; -fx-text-fill: white; -fx-cursor: hand;" text="🔄 VER TODO" />
+
+                                <Separator orientation="VERTICAL" />
+
+                                <Button onAction="#abrirReporteMozo" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="👤 REPORTE MOZOS" />
+                                <Button onAction="#exportarExcel" style="-fx-background-color: #2c3e50; -fx-text-fill: white; -fx-cursor: hand;" text="📥 EXPORTAR CSV" />
                             </HBox>
 
                             <TableView fx:id="tablaVentas" VBox.vgrow="ALWAYS">
@@ -49,9 +57,24 @@
                                 <columnResizePolicy><TableView fx:constant="CONSTRAINED_RESIZE_POLICY" /></columnResizePolicy>
                             </TableView>
 
-                            <HBox alignment="CENTER_RIGHT" style="-fx-background-color: #ecf0f1; -fx-padding: 10; -fx-background-radius: 5;">
-                                <Label text="TOTAL VENTAS: " textFill="#7f8c8d"><font><Font size="14.0" /></font></Label>
-                                <Label fx:id="lblTotalDia" textFill="#27ae60"><font><Font name="System Bold" size="24.0" /></font></Label>
+                            <HBox alignment="CENTER_RIGHT" spacing="20.0" style="-fx-background-color: #ecf0f1; -fx-padding: 10; -fx-background-radius: 5;">
+                                <HBox alignment="CENTER" spacing="5.0">
+                                    <Label text="OPERACIONES:" textFill="#7f8c8d">
+                                        <font><Font size="13.0" /></font>
+                                    </Label>
+                                    <Label fx:id="lblCantOperaciones" text="0" style="-fx-font-weight: bold;">
+                                        <font><Font size="16.0" /></font>
+                                    </Label>
+                                </HBox>
+                                <Separator orientation="VERTICAL" />
+                                <HBox alignment="CENTER" spacing="10.0">
+                                    <Label text="TOTAL VENTAS: " textFill="#7f8c8d">
+                                        <font><Font size="14.0" /></font>
+                                    </Label>
+                                    <Label fx:id="lblTotalDia" textFill="#27ae60">
+                                        <font><Font name="System Bold" size="24.0" /></font>
+                                    </Label>
+                                </HBox>
                             </HBox>
                         </VBox>
                     </content>
@@ -78,9 +101,9 @@
                             </HBox>
 
                             <HBox spacing="10.0">
-                                <Button onAction="#registrarIngreso" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;" text="➕ INGRESAR DINERO" />
-                                <Button onAction="#registrarGasto" style="-fx-background-color: #c0392b; -fx-text-fill: white; -fx-font-weight: bold;" text="➖ REGISTRAR GASTO" />
-                                <Button onAction="#registrarRetiro" style="-fx-background-color: #e67e22; -fx-text-fill: white; -fx-font-weight: bold;" text="🏦 RETIRO / SANGRÍA" />
+                                <Button onAction="#registrarIngreso" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="➕ INGRESAR DINERO" />
+                                <Button onAction="#registrarGasto" style="-fx-background-color: #c0392b; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="➖ REGISTRAR GASTO" />
+                                <Button onAction="#registrarRetiro" style="-fx-background-color: #e67e22; -fx-text-fill: white; -fx-font-weight: bold; -fx-cursor: hand;" text="🏦 RETIRO / SANGRÍA" />
                             </HBox>
 
                             <TableView fx:id="tablaMovimientos" VBox.vgrow="ALWAYS">
