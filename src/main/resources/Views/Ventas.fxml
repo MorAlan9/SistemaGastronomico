@@ -51,6 +51,9 @@
                                     <TableColumn fx:id="colFecha" prefWidth="140.0" text="Fecha / Hora" />
                                     <TableColumn fx:id="colMesa" prefWidth="80.0" style="-fx-alignment: CENTER;" text="Mesa N°" />
                                     <TableColumn fx:id="colMozo" prefWidth="120.0" text="Atendió" />
+
+                                    <TableColumn fx:id="colInfo" prefWidth="180.0" text="Detalle / Ref" />
+
                                     <TableColumn fx:id="colMetodo" prefWidth="120.0" text="Forma Pago" />
                                     <TableColumn fx:id="colTotal" prefWidth="120.0" style="-fx-alignment: CENTER-RIGHT;" text="TOTAL" />
                                 </columns>

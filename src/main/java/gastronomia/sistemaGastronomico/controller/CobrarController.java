@@ -1,7 +1,7 @@
 package gastronomia.sistemaGastronomico.controller;
 
-import gastronomia.sistemaGastronomico.dao.DetallePedidoRepository; // IMPORTANTE
-import gastronomia.sistemaGastronomico.dao.PedidoRepository;       // IMPORTANTE
+import gastronomia.sistemaGastronomico.dao.DetallePedidoRepository;
+import gastronomia.sistemaGastronomico.dao.PedidoRepository;
 import gastronomia.sistemaGastronomico.model.DetallePedido;
 import gastronomia.sistemaGastronomico.model.Pedido;
 import gastronomia.sistemaGastronomico.service.PedidoService;
@@ -26,6 +26,7 @@ public class CobrarController {
     private final PedidoRepository pedidoRepo;
     private final DetallePedidoRepository detalleRepo;
 
+    // Elementos FXML
     @FXML private Label lblTitulo;
     @FXML private Label lblTotal;
     @FXML private ToggleGroup grupoPago;
@@ -37,12 +38,13 @@ public class CobrarController {
     @FXML private TextField txtAbonaCon;
     @FXML private Label lblVuelto;
 
+    // Variables Internas
     private Pedido pedidoActual;
     private List<DetallePedido> itemsAPagar;
     private BigDecimal totalOriginal = BigDecimal.ZERO;
     private BigDecimal totalFinal = BigDecimal.ZERO;
 
-    // Inyectamos los repositorios necesarios para hacer el movimiento de items
+    // Constructor con Inyección de Dependencias
     public CobrarController(PedidoService pedidoService,
                             PedidoRepository pedidoRepo,
                             DetallePedidoRepository detalleRepo) {
@@ -53,9 +55,11 @@ public class CobrarController {
 
     @FXML
     public void initialize() {
+        // Listeners para cálculos en tiempo real
         if (txtAbonaCon != null) txtAbonaCon.textProperty().addListener((obs, oldVal, newVal) -> calcularVuelto());
         if (txtDescuentoPorc != null) txtDescuentoPorc.textProperty().addListener((obs, oldVal, newVal) -> recalcularTotal());
 
+        // Listener para cambio de método de pago (Bloquea "Abona con" si es Tarjeta/QR)
         grupoPago.selectedToggleProperty().addListener((obs, oldVal, newVal) -> {
             if (newVal == null) return;
             ToggleButton btn = (ToggleButton) newVal;
@@ -72,6 +76,7 @@ public class CobrarController {
         });
     }
 
+    // --- MÉTODO QUE RECIBE LOS DATOS ---
     public void iniciarCobro(Pedido pedido, List<DetallePedido> itemsSeleccionados) {
         this.pedidoActual = pedido;
         this.itemsAPagar = itemsSeleccionados;
@@ -85,15 +90,17 @@ public class CobrarController {
                 this.totalOriginal = this.totalOriginal.add(subtotal);
             }
         } else {
-            // Fallback por seguridad
+            // Fallback por seguridad: Si no llega lista, usamos el total del pedido
             this.totalOriginal = pedido.getTotal() != null ? pedido.getTotal() : BigDecimal.ZERO;
         }
 
+        // 2. Configurar Vista
         lblTitulo.setText("MESA " + pedido.getMesa().getNumero());
         txtDescuentoPorc.setText("0");
         recalcularTotal();
         Platform.runLater(() -> txtAbonaCon.requestFocus());
 
+        // 3. Configurar Eventos de Teclado (Enter y Escape)
         Platform.runLater(() -> {
             if (lblTitulo.getScene() != null) {
                 lblTitulo.getScene().addEventHandler(KeyEvent.KEY_PRESSED, event -> {
@@ -129,7 +136,9 @@ public class CobrarController {
         }
 
         lblTotal.setText("$" + totalFinal.setScale(0, RoundingMode.HALF_UP));
-        if (btnTarjeta.isSelected() || btnQR.isSelected()) {
+
+        // Si es tarjeta/QR actualizamos el campo de abono automáticamente
+        if (grupoPago.getSelectedToggle() == btnTarjeta || grupoPago.getSelectedToggle() == btnQR) {
             txtAbonaCon.setText(totalFinal.setScale(0, RoundingMode.HALF_UP).toString());
         }
         calcularVuelto();
@@ -146,8 +155,11 @@ public class CobrarController {
             BigDecimal vuelto = abonaCon.subtract(totalFinal);
             lblVuelto.setText("$" + vuelto.setScale(0, RoundingMode.HALF_UP));
 
-            if (vuelto.compareTo(BigDecimal.ZERO) < 0) lblVuelto.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
-            else lblVuelto.setStyle("-fx-text-fill: green; -fx-font-weight: bold;");
+            if (vuelto.compareTo(BigDecimal.ZERO) < 0) {
+                lblVuelto.setStyle("-fx-text-fill: red; -fx-font-weight: bold;");
+            } else {
+                lblVuelto.setStyle("-fx-text-fill: green; -fx-font-weight: bold;");
+            }
         } catch (NumberFormatException e) {
             lblVuelto.setText("---");
         }
@@ -158,6 +170,8 @@ public class CobrarController {
         try {
             ToggleButton seleccionado = (ToggleButton) grupoPago.getSelectedToggle();
             String textoBoton = seleccionado != null ? seleccionado.getText() : "Efectivo";
+
+            // Limpiar texto para guardar en BD
             String metodoLimpio = "Efectivo";
             if (textoBoton.toLowerCase().contains("tarjeta")) metodoLimpio = "Tarjeta";
             else if (textoBoton.toLowerCase().contains("qr")) metodoLimpio = "QR / MP";
@@ -165,7 +179,10 @@ public class CobrarController {
             // --- LÓGICA DE COBRO INTELIGENTE ---
 
             // 1. Averiguar si estamos pagando TODO el pedido o solo una PARTE
+            // (Requiere que hayas agregado countByPedido en DetallePedidoRepository)
             long totalItemsEnMesa = detalleRepo.countByPedido(pedidoActual);
+
+            // Si la lista es nula o tiene la misma cantidad de items que la mesa, es total.
             boolean esPagoTotal = (itemsAPagar == null) || (itemsAPagar.size() >= totalItemsEnMesa);
 
             if (esPagoTotal) {
@@ -185,7 +202,10 @@ public class CobrarController {
                 pedidoFactura.setHora(LocalTime.now());
                 pedidoFactura.setEstado("CERRADO"); // Nace cerrado
                 pedidoFactura.setTotal(totalFinal);
-                pedidoFactura.setMetodoPago(metodoLimpio);
+                pedidoFactura.setMetodoPago(metodoLimpio); // Asegurate de tener este campo en Pedido
+
+                // OPCIONAL: Si agregaste idPedidoPadre en el Modelo, descomenta esto:
+                 pedidoFactura.setIdPedidoPadre(pedidoActual.getId());
 
                 // Guardamos el pedido nuevo para tener ID
                 Pedido pedidoGuardado = pedidoRepo.save(pedidoFactura);
@@ -195,10 +215,6 @@ public class CobrarController {
                     item.setPedido(pedidoGuardado); // Cambiamos de dueño
                     detalleRepo.save(item);
                 }
-
-                // C) Recalcular el total del pedido original (que sigue ABIERTO)
-                // (Esto se hace visualmente al volver, pero es bueno actualizarlo en BD si lo guardas allí)
-                // Opcional: pedidoService.recalcularTotal(pedidoActual.getId());
             }
 
             cerrar();
@@ -212,6 +228,10 @@ public class CobrarController {
 
     @FXML
     public void cerrar() {
-        ((Stage) lblTotal.getScene().getWindow()).close();
+        try {
+            ((Stage) lblTotal.getScene().getWindow()).close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 }

@@ -12,7 +12,7 @@ import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser; // IMPORTANTE: Para elegir dónde guardar
+import javafx.stage.FileChooser;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import org.springframework.context.ApplicationContext;
@@ -25,7 +25,6 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Component
@@ -44,6 +43,10 @@ public class VentasController {
     @FXML private TableColumn<Pedido, String> colMesa;
     @FXML private TableColumn<Pedido, String> colMozo;
     @FXML private TableColumn<Pedido, String> colMetodo;
+
+    // --- NUEVA COLUMNA ---
+    @FXML private TableColumn<Pedido, String> colInfo;
+
     @FXML private TableColumn<Pedido, BigDecimal> colTotal;
     @FXML private Label lblTotalDia;
     @FXML private Label lblCantOperaciones;
@@ -85,7 +88,36 @@ public class VentasController {
         colMesa.setCellValueFactory(cell -> new SimpleStringProperty(String.valueOf(cell.getValue().getMesa().getNumero())));
         colMozo.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getMozo().getNombre()));
 
-        // UX: BADGES DE COLORES
+        // --- LÓGICA DE LA NUEVA COLUMNA DE REFERENCIA ---
+        colInfo.setCellValueFactory(cellData -> {
+            Pedido p = cellData.getValue();
+            // Si tiene ID Padre, mostramos que es un pago parcial
+            if (p.getIdPedidoPadre() != null) {
+                return new SimpleStringProperty("🔗 Parcial (Ref #" + p.getIdPedidoPadre() + ")");
+            }
+            return new SimpleStringProperty("-");
+        });
+
+        // Estilo opcional: Poner en azulito si es parcial
+        colInfo.setCellFactory(column -> new TableCell<Pedido, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty || item == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    setText(item);
+                    if (item.contains("🔗")) {
+                        setStyle("-fx-text-fill: #2980b9; -fx-font-weight: bold; -fx-alignment: CENTER;");
+                    } else {
+                        setStyle("-fx-alignment: CENTER; -fx-text-fill: #bdc3c7;");
+                    }
+                }
+            }
+        });
+
+        // UX: BADGES DE COLORES (Tu código original)
         colMetodo.setCellValueFactory(new PropertyValueFactory<>("metodoPago"));
         colMetodo.setCellFactory(column -> new TableCell<Pedido, String>() {
             @Override
@@ -96,9 +128,9 @@ public class VentasController {
                     setStyle("");
                 } else {
                     setText(item);
-                    if (item.equalsIgnoreCase("Efectivo")) {
+                    if (item != null && item.equalsIgnoreCase("Efectivo")) {
                         setStyle("-fx-background-color: #d4edda; -fx-text-fill: #155724; -fx-alignment: CENTER; -fx-background-radius: 5; -fx-font-weight: bold;");
-                    } else if (item.toLowerCase().contains("tarjeta")) {
+                    } else if (item != null && item.toLowerCase().contains("tarjeta")) {
                         setStyle("-fx-background-color: #d1ecf1; -fx-text-fill: #0c5460; -fx-alignment: CENTER; -fx-background-radius: 5; -fx-font-weight: bold;");
                     } else {
                         setStyle("-fx-background-color: #e2d9f3; -fx-text-fill: #512da8; -fx-alignment: CENTER; -fx-background-radius: 5; -fx-font-weight: bold;");
@@ -115,16 +147,13 @@ public class VentasController {
 
         if (desde == null || hasta == null) return;
 
-        // 1. Consultar a la BD
         List<Pedido> todasLasVentas = pedidoRepo.findByEstadoOrderByIdDesc("CERRADO");
 
-        // 2. Filtrar
         List<Pedido> filtrados = todasLasVentas.stream()
                 .filter(p -> (p.getFecha().isEqual(desde) || p.getFecha().isAfter(desde)) &&
                         (p.getFecha().isEqual(hasta) || p.getFecha().isBefore(hasta)))
                 .collect(Collectors.toList());
 
-        // 3. Actualizar UI
         tablaVentas.getItems().setAll(filtrados);
 
         BigDecimal suma = filtrados.stream().map(Pedido::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
@@ -142,7 +171,6 @@ public class VentasController {
         filtrar();
     }
 
-    // --- REPORTE MOZOS ---
     @FXML
     public void abrirReporteMozo() {
         try {
@@ -157,7 +185,6 @@ public class VentasController {
         } catch (IOException e) { e.printStackTrace(); }
     }
 
-    // --- EXPORTAR EXCEL CON SELECTOR DE ARCHIVOS ---
     @FXML
     public void exportarExcel() {
         List<Pedido> datos = tablaVentas.getItems();
@@ -166,29 +193,27 @@ public class VentasController {
             return;
         }
 
-        // 1. Configurar el FileChooser
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Guardar Reporte de Ventas");
         fileChooser.setInitialFileName("Ventas_" + LocalDate.now() + ".csv");
         fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Archivos CSV (*.csv)", "*.csv"));
 
-        // 2. Obtener la ventana actual para mostrar el diálogo
         Stage stage = (Stage) tablaVentas.getScene().getWindow();
-
-        // 3. Mostrar diálogo "Guardar Como"
         File file = fileChooser.showSaveDialog(stage);
 
-        // 4. Si el usuario seleccionó un archivo
         if (file != null) {
             try (PrintWriter pw = new PrintWriter(file)) {
-                // Encabezados
-                pw.println("Nro;Fecha;Mesa;Mozo;Pago;Total");
+                // AGREGUÉ LA COLUMNA 'REFERENCIA' AL EXCEL TAMBIÉN
+                pw.println("Nro;Fecha;Mesa;Mozo;Referencia;Pago;Total");
 
-                // Datos
                 for (Pedido p : datos) {
-                    pw.printf("%d;%s;%d;%s;%s;%.2f%n",
+                    String referencia = (p.getIdPedidoPadre() != null) ? "Parcial (Ref #" + p.getIdPedidoPadre() + ")" : "-";
+
+                    pw.printf("%d;%s;%d;%s;%s;%s;%.2f%n",
                             p.getId(), p.getFecha(), p.getMesa().getNumero(),
-                            p.getMozo().getNombre(), p.getMetodoPago(), p.getTotal());
+                            p.getMozo().getNombre(),
+                            referencia,
+                            p.getMetodoPago(), p.getTotal());
                 }
 
                 mostrarAlerta("Exportación Exitosa", "Reporte guardado en:\n" + file.getAbsolutePath());
@@ -200,7 +225,6 @@ public class VentasController {
         }
     }
 
-    // Método auxiliar para alertas
     private void mostrarAlerta(String titulo, String mensaje) {
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
         alert.setTitle(titulo);
@@ -239,7 +263,6 @@ public class VentasController {
         BigDecimal ingresosManuales = movimientos.stream().filter(m -> "INGRESO".equals(m.getTipo())).map(MovimientoCaja::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal egresos = movimientos.stream().filter(m -> "EGRESO".equals(m.getTipo())).map(MovimientoCaja::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
 
-        // Sumar ventas de hoy
         BigDecimal ventasHoy = pedidoRepo.findByEstadoOrderByIdDesc("CERRADO").stream()
                 .filter(p -> p.getFecha().isEqual(LocalDate.now()))
                 .map(Pedido::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);

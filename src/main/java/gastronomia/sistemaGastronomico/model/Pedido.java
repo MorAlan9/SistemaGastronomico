@@ -86,4 +86,17 @@ public class Pedido {
 
     public Integer getComensales() { return comensales; }
     public void setComensales(Integer comensales) { this.comensales = comensales; }
+
+    // CAMPO NUEVO: Referencia al pedido original
+    @Column(name = "id_pedido_padre")
+    private Long idPedidoPadre;
+
+    // Getter y Setter
+    public Long getIdPedidoPadre() {
+        return idPedidoPadre;
+    }
+
+    public void setIdPedidoPadre(Long idPedidoPadre) {
+        this.idPedidoPadre = idPedidoPadre;
+    }
 }
