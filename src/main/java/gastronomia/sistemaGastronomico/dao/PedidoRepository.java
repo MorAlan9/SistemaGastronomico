@@ -21,8 +21,9 @@ public interface PedidoRepository extends JpaRepository<Pedido, Long> {
 
     List<Pedido> findByEstadoOrderByIdDesc(String estado);
 
-    // --- CORREGIDO AQUÍ: Usamos 'metodoPago' en lugar de 'formaPago' ---
-    @Query("SELECT p.metodoPago, SUM(p.total) FROM Pedido p " +
+    // --- CORREGIDO Y ROBUSTO ---
+    // Usamos COALESCE para evitar nulos en ventas viejas
+    @Query("SELECT COALESCE(p.metodoPago, 'Sin Definir'), SUM(p.total) FROM Pedido p " +
             "WHERE p.mozo = :mozo AND p.fecha = :fecha AND p.estado = 'CERRADO' " +
             "GROUP BY p.metodoPago")
     List<Object[]> obtenerTotalesPorMozo(@Param("mozo") Mozo mozo, @Param("fecha") LocalDate fecha);

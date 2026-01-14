@@ -10,92 +10,105 @@
 <?import javafx.scene.control.TableView?>
 <?import javafx.scene.control.TextField?>
 <?import javafx.scene.layout.AnchorPane?>
+<?import javafx.scene.layout.HBox?>
 <?import javafx.scene.layout.VBox?>
 <?import javafx.scene.text.Font?>
 
-<AnchorPane prefHeight="600.0" prefWidth="900.0" xmlns="http://javafx.com/javafx/17" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gastronomia.sistemaGastronomico.controller.AdminProductosController">
+<AnchorPane prefHeight="600.0" prefWidth="1000.0" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gastronomia.sistemaGastronomico.controller.AdminProductosController">
     <children>
-        <SplitPane dividerPositions="0.65" layoutX="200.0" layoutY="120.0" prefHeight="600.0" prefWidth="900.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+        <SplitPane dividerPositions="0.7" layoutX="200.0" layoutY="120.0" prefHeight="600.0" prefWidth="900.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
             <items>
                 <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0">
                     <children>
                         <VBox layoutX="123.0" layoutY="56.0" prefHeight="598.0" prefWidth="536.0" spacing="10.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                             <padding>
-                                <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
+                                <Insets bottom="15.0" left="15.0" right="15.0" top="15.0" />
                             </padding>
                             <children>
-                                <Label text="Productos Actuales">
-                                    <font>
-                                        <Font name="System Bold" size="18.0" />
-                                    </font>
-                                </Label>
+                                <HBox alignment="CENTER_LEFT" spacing="10.0">
+                                    <children>
+                                        <Label text="Inventario de Productos" textFill="#2c3e50">
+                                            <font>
+                                                <Font name="System Bold" size="20.0" />
+                                            </font>
+                                        </Label>
+                                        <Label text="(F3 Buscar / Doble Click Editar)" textFill="#7f8c8d" />
+                                    </children>
+                                </HBox>
+
                                 <TableView fx:id="tablaProductos" prefHeight="200.0" prefWidth="200.0" VBox.vgrow="ALWAYS">
                                     <columns>
                                         <TableColumn fx:id="colId" prefWidth="50.0" text="ID" />
-                                        <TableColumn fx:id="colNombre" prefWidth="150.0" text="Nombre" />
-                                        <TableColumn fx:id="colCategoria" prefWidth="100.0" text="Categoría" />
+                                        <TableColumn fx:id="colNombre" prefWidth="200.0" text="Nombre" />
+                                        <TableColumn fx:id="colCategoria" prefWidth="120.0" text="Categoría" />
                                         <TableColumn fx:id="colTipo" prefWidth="80.0" text="Tipo" />
-                                        <TableColumn fx:id="colPrecio" prefWidth="80.0" text="Precio ($)" />
-                                        <TableColumn fx:id="colStock" prefWidth="60.0" text="Stock" />
+                                        <TableColumn fx:id="colPrecio" prefWidth="100.0" style="-fx-alignment: CENTER-RIGHT;" text="Precio ($)" />
+                                        <TableColumn fx:id="colStock" prefWidth="80.0" style="-fx-alignment: CENTER;" text="Stock" />
                                     </columns>
                                     <columnResizePolicy>
                                         <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
                                     </columnResizePolicy>
                                 </TableView>
+                                <Label text="* Click Derecho para Ocultar o Eliminar definitivamente." textFill="#95a5a6">
+                                    <font>
+                                        <Font size="11.0" />
+                                    </font>
+                                </Label>
                             </children>
                         </VBox>
                     </children>
                 </AnchorPane>
 
-                <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0" style="-fx-background-color: #f4f4f4;">
+                <AnchorPane minHeight="0.0" minWidth="0.0" prefHeight="160.0" prefWidth="100.0" style="-fx-background-color: #f8f9fa;">
                     <children>
                         <VBox layoutX="49.0" layoutY="68.0" prefHeight="598.0" prefWidth="310.0" spacing="15.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
                             <padding>
                                 <Insets bottom="20.0" left="20.0" right="20.0" top="20.0" />
                             </padding>
                             <children>
-                                <Label text="Nuevo / Editar Producto">
+                                <Label text="Gestión de Producto" textFill="#2c3e50">
                                     <font>
-                                        <Font size="16.0" />
+                                        <Font name="System Bold" size="18.0" />
                                     </font>
                                 </Label>
+                                <Label text="Complete los datos:" textFill="#7f8c8d" />
 
                                 <VBox spacing="5.0">
                                     <children>
-                                        <Label text="Nombre del Plato/Bebida:" />
-                                        <TextField fx:id="txtNombre" promptText="Ej: Milanesa Napolitana" />
+                                        <Label text="Nombre del Producto:" style="-fx-font-weight: bold;" />
+                                        <TextField fx:id="txtNombre" promptText="Ej: Hamburguesa Completa" />
                                     </children>
                                 </VBox>
 
                                 <VBox spacing="5.0">
                                     <children>
-                                        <Label text="Precio ($):" />
-                                        <TextField fx:id="txtPrecio" promptText="Ej: 8500.50" />
+                                        <Label text="Precio de Venta ($):" style="-fx-font-weight: bold;" />
+                                        <TextField fx:id="txtPrecio" promptText="0.00" />
                                     </children>
                                 </VBox>
 
                                 <VBox spacing="5.0">
                                     <children>
-                                        <Label text="Stock Inicial:" />
-                                        <TextField fx:id="txtStock" promptText="Ej: 50" />
+                                        <Label text="Stock Disponible:" style="-fx-font-weight: bold;" />
+                                        <TextField fx:id="txtStock" promptText="0" />
                                     </children>
                                 </VBox>
 
                                 <VBox spacing="5.0">
                                     <children>
-                                        <Label text="Categoría:" />
+                                        <Label text="Categoría:" style="-fx-font-weight: bold;" />
                                         <ComboBox fx:id="cmbCategoria" maxWidth="1.7976931348623157E308" promptText="Seleccione..." />
                                     </children>
                                 </VBox>
 
-                                <VBox spacing="5.0" style="-fx-background-color: #e0f7fa; -fx-background-radius: 5; -fx-border-color: #b2ebf2; -fx-border-radius: 5;">
+                                <VBox spacing="8.0" style="-fx-background-color: #e3f2fd; -fx-background-radius: 5; -fx-border-color: #bbdefb; -fx-border-radius: 5;">
                                     <children>
-                                        <CheckBox fx:id="chkEsCocina" mnemonicParsing="false" text="¿Requiere Cocina? (Demora)">
+                                        <CheckBox fx:id="chkEsCocina" mnemonicParsing="false" text="Enviar a Cocina">
                                             <font>
-                                                <Font name="System Bold" size="12.0" />
+                                                <Font name="System Bold" size="13.0" />
                                             </font>
                                         </CheckBox>
-                                        <Label text="* Si marcas esto, reiniciará el tiempo de espera." textFill="#7f8c8d" wrapText="true">
+                                        <Label text="Si activas esto, el producto aparecerá en la comanda de cocina." textFill="#546e7a" wrapText="true">
                                             <font>
                                                 <Font size="10.0" />
                                             </font>
@@ -106,14 +119,16 @@
                                     </padding>
                                 </VBox>
 
-                                <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#guardarProducto" style="-fx-background-color: #27ae60; -fx-text-fill: white;" text="GUARDAR PRODUCTO">
+                                <Button fx:id="btnGuardar" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#guardarProducto" prefHeight="45.0" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-cursor: hand;" text="💾 GUARDAR CAMBIOS">
                                     <font>
-                                        <Font name="System Bold" size="12.0" />
+                                        <Font name="System Bold" size="14.0" />
                                     </font>
                                     <VBox.margin>
-                                        <Insets top="10.0" />
+                                        <Insets top="15.0" />
                                     </VBox.margin>
                                 </Button>
+
+                                <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#limpiarFormulario" style="-fx-background-color: transparent; -fx-text-fill: #95a5a6; -fx-underline: true; -fx-cursor: hand;" text="Cancelar / Limpiar" />
                             </children>
                         </VBox>
                     </children>

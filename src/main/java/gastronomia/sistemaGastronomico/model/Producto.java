@@ -4,35 +4,38 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 
 @Entity
+@Table(name = "producto") // Aseguramos que busque la tabla correcta
 public class Producto {
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
     private String nombre;
 
-    // Usamos el Objeto Categoria (Relación ManyToOne)
     @ManyToOne
     @JoinColumn(name = "categoria_id")
     private Categoria categoria;
 
     private BigDecimal precioActual;
     private Integer stock;
-    private Boolean activo;
 
-    // Campo nuevo para saber si demora
+    // --- CAMBIO CLAVE: Usar Boolean (Objeto) en vez de boolean (primitivo) ---
+    @Column(columnDefinition = "BOOLEAN DEFAULT true")
+    private Boolean activo = true;
+
     @Column(name = "es_cocina")
-    private boolean esCocina;
+    private Boolean esCocina = false;
 
     public Producto() {}
 
-    public Producto(String nombre, Categoria categoria, BigDecimal precio, Integer stock, Boolean activo, boolean esCocina) {
+    public Producto(String nombre, Categoria categoria, BigDecimal precio, Integer stock, Boolean activo, Boolean esCocina) {
         this.nombre = nombre;
         this.categoria = categoria;
         this.precioActual = precio;
         this.stock = stock;
-        this.activo = activo;
-        this.esCocina = esCocina;
+        this.activo = activo != null ? activo : true;
+        this.esCocina = esCocina != null ? esCocina : false;
     }
 
     // Getters y Setters
@@ -51,9 +54,21 @@ public class Producto {
     public Integer getStock() { return stock; }
     public void setStock(Integer stock) { this.stock = stock; }
 
-    public Boolean getActivo() { return activo; }
-    public void setActivo(Boolean activo) { this.activo = activo; }
+    // --- GETTERS BLINDADOS PARA EVITAR NULOS EN LA VISTA ---
 
-    public boolean isEsCocina() { return esCocina; }
-    public void setEsCocina(boolean esCocina) { this.esCocina = esCocina; }
+    public Boolean isActivo() {
+        return activo != null ? activo : true; // Si es null, devuelve true por defecto
+    }
+
+    public void setActivo(Boolean activo) {
+        this.activo = activo;
+    }
+
+    public Boolean isEsCocina() {
+        return esCocina != null ? esCocina : false; // Si es null, devuelve false
+    }
+
+    public void setEsCocina(Boolean esCocina) {
+        this.esCocina = esCocina;
+    }
 }

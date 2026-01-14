@@ -17,7 +17,6 @@ public class MenuPrincipalController {
 
     @FXML private TabPane tabPanePrincipal;
 
-    // Inyectamos las pestañas que creamos en el FXML
     @FXML private Tab tabRestaurante;
     @FXML private Tab tabVentas;
     @FXML private Tab tabProductos;
@@ -30,18 +29,28 @@ public class MenuPrincipalController {
     @FXML
     public void initialize() {
         // Al arrancar, cargamos el contenido dentro de cada pestaña
-        cargarContenidoEnTab(tabRestaurante, "/Views/Restaurante.fxml");
-        cargarContenidoEnTab(tabVentas, "/Views/Ventas.fxml");
-        cargarContenidoEnTab(tabProductos, "/Views/Admin_Productos.fxml");
 
-        // Si aún no tienes gastos.fxml, comenta esta línea para que no de error
+        // 1. Restaurante
+        cargarContenidoEnTab(tabRestaurante, "/Views/Restaurante.fxml");
+
+        // 2. Ventas
+        cargarContenidoEnTab(tabVentas, "/Views/Ventas.fxml");
+
+        // 3. Productos (CORREGIDO: Sin el guion bajo)
+        // Asegúrate de que el archivo en resources/Views se llame 'AdminProductos.fxml'
+        cargarContenidoEnTab(tabProductos, "/Views/AdminProductos.fxml");
+
+        // 4. Gastos (Descomentar cuando exista)
         // cargarContenidoEnTab(tabGastos, "/Views/gastos.fxml");
     }
 
     private void cargarContenidoEnTab(Tab tab, String rutaFxml) {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource(rutaFxml));
-            loader.setControllerFactory(context::getBean); // Clave para que funcione Spring
+
+            // ESTA LÍNEA ES LA CLAVE: Conecta el Controller con la Base de Datos
+            loader.setControllerFactory(context::getBean);
+
             Parent contenido = loader.load();
 
             // Metemos la pantalla dentro de la pestaña
@@ -50,7 +59,9 @@ public class MenuPrincipalController {
         } catch (IOException e) {
             e.printStackTrace();
             System.err.println("❌ Error al cargar pestaña: " + rutaFxml);
-            tab.setText(tab.getText() + " (Error)");
+            // Esto te avisará visualmente si falla
+            tab.setText("ERROR AL CARGAR");
+            tab.setDisable(true);
         }
     }
 }
