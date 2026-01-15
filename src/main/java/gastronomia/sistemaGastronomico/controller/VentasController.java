@@ -1,308 +1,399 @@
 package gastronomia.sistemaGastronomico.controller;
 
-import gastronomia.sistemaGastronomico.dao.MovimientoCajaRepository;
-import gastronomia.sistemaGastronomico.dao.PedidoRepository;
 import gastronomia.sistemaGastronomico.model.MovimientoCaja;
 import gastronomia.sistemaGastronomico.model.Pedido;
-import javafx.beans.property.SimpleStringProperty;
+import gastronomia.sistemaGastronomico.dao.MovimientoCajaRepository;
+import gastronomia.sistemaGastronomico.dao.PedidoRepository;
+
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
-import javafx.fxml.FXMLLoader;
-import javafx.scene.Parent;
-import javafx.scene.Scene;
+import javafx.fxml.Initializable;
+import javafx.scene.chart.PieChart;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
-import javafx.scene.layout.VBox;
+import javafx.scene.input.MouseEvent;
 import javafx.stage.FileChooser;
-import javafx.stage.Modality;
-import javafx.stage.Stage;
-import org.springframework.context.ApplicationContext;
-import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
 
 import java.io.File;
-import java.io.IOException;
 import java.io.PrintWriter;
 import java.math.BigDecimal;
+import java.net.URL;
+import java.text.NumberFormat;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.ResourceBundle;
 import java.util.stream.Collectors;
 
-@Component
-public class VentasController {
+@Controller
+public class VentasController implements Initializable {
 
-    private final PedidoRepository pedidoRepo;
-    private final MovimientoCajaRepository cajaRepo;
-    private final ApplicationContext context;
+    @Autowired
+    private PedidoRepository pedidoRepository;
+    @Autowired
+    private MovimientoCajaRepository movimientoRepository;
 
-    // --- PESTAÑA 1: VENTAS ---
-    @FXML private DatePicker dpDesde;
-    @FXML private DatePicker dpHasta;
-    @FXML private TableView<Pedido> tablaVentas;
-    @FXML private TableColumn<Pedido, Long> colId;
-    @FXML private TableColumn<Pedido, String> colFecha;
-    @FXML private TableColumn<Pedido, String> colMesa;
-    @FXML private TableColumn<Pedido, String> colMozo;
-    @FXML private TableColumn<Pedido, String> colMetodo;
+    // --- PESTAÑA 1: HISTORIAL ---
+    @FXML private DatePicker dpDesde, dpHasta;
+    @FXML private Label lblCantOperaciones, lblTotalDia;
+    @FXML private TableView<VentaModel> tablaVentas;
+    @FXML private TableColumn<VentaModel, Long> colId;
+    @FXML private TableColumn<VentaModel, LocalDateTime> colFecha;
+    @FXML private TableColumn<VentaModel, String> colMesa, colMozo, colInfo, colMetodo;
+    @FXML private TableColumn<VentaModel, BigDecimal> colTotal;
 
-    // --- NUEVA COLUMNA ---
-    @FXML private TableColumn<Pedido, String> colInfo;
-
-    @FXML private TableColumn<Pedido, BigDecimal> colTotal;
-    @FXML private Label lblTotalDia;
-    @FXML private Label lblCantOperaciones;
+    // Gráficos Historial
+    @FXML private PieChart graficoVentas; // Mozos
+    @FXML private PieChart graficoMetodosHistorial; // Métodos de pago (Historial)
 
     // --- PESTAÑA 2: CAJA ---
-    @FXML private Label lblSaldoCaja;
-    @FXML private Label lblTotalIngresos;
-    @FXML private Label lblTotalEgresos;
-    @FXML private TableView<MovimientoCaja> tablaMovimientos;
-    @FXML private TableColumn<MovimientoCaja, String> colMovFecha;
-    @FXML private TableColumn<MovimientoCaja, String> colMovTipo;
-    @FXML private TableColumn<MovimientoCaja, String> colMovCat;
-    @FXML private TableColumn<MovimientoCaja, String> colMovDesc;
-    @FXML private TableColumn<MovimientoCaja, BigDecimal> colMovMonto;
+    @FXML private Label lblEstadoCaja, lblSaldoCaja, lblTotalIngresos, lblTotalEgresos;
+    @FXML private Button btnAbrirCaja, btnIngreso, btnGasto, btnRetiro, btnCerrarCaja;
+    @FXML private TableView<MovimientoModel> tablaMovimientos;
+    @FXML private TableColumn<MovimientoModel, LocalDateTime> colMovFecha;
+    @FXML private TableColumn<MovimientoModel, String> colMovTipo, colMovCat, colMovDesc;
+    @FXML private TableColumn<MovimientoModel, BigDecimal> colMovMonto;
+    @FXML private PieChart graficoPagos; // Métodos de pago (Caja del día)
 
-    public VentasController(PedidoRepository pedidoRepo, MovimientoCajaRepository cajaRepo, ApplicationContext context) {
-        this.pedidoRepo = pedidoRepo;
-        this.cajaRepo = cajaRepo;
-        this.context = context;
+    // --- Variables ---
+    private boolean cajaAbierta = false;
+    private ObservableList<VentaModel> listaVentas = FXCollections.observableArrayList();
+    private ObservableList<MovimientoModel> listaMovimientos = FXCollections.observableArrayList();
+
+    private final NumberFormat currencyFormat = NumberFormat.getCurrencyInstance(new Locale("es", "AR"));
+    private final DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("dd/MM HH:mm");
+
+    @Override
+    public void initialize(URL url, ResourceBundle resourceBundle) {
+        configurarTablas();
+        inicializarFechas();
+
+        cargarVentasInicial();  // Carga inicial (todo)
+        cargarMovimientos();
+
+        actualizarEstadoVisual();
+        calcularEstadisticas();
     }
 
-    @FXML
-    public void initialize() {
-        configurarTablaVentas();
-        configurarTablaMovimientos();
+    // ==========================================
+    // CARGA DE DATOS
+    // ==========================================
 
-        dpDesde.setValue(LocalDate.now());
-        dpHasta.setValue(LocalDate.now());
-
-        filtrar();
-        actualizarCaja();
-    }
-
-    private void configurarTablaVentas() {
-        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
-        colTotal.setCellValueFactory(new PropertyValueFactory<>("total"));
-        colFecha.setCellValueFactory(cell -> new SimpleStringProperty(
-                cell.getValue().getFecha() + " " + cell.getValue().getHora().toString().substring(0, 5)));
-        colMesa.setCellValueFactory(cell -> new SimpleStringProperty(String.valueOf(cell.getValue().getMesa().getNumero())));
-        colMozo.setCellValueFactory(cell -> new SimpleStringProperty(cell.getValue().getMozo().getNombre()));
-
-        // --- LÓGICA DE LA NUEVA COLUMNA DE REFERENCIA ---
-        colInfo.setCellValueFactory(cellData -> {
-            Pedido p = cellData.getValue();
-            // Si tiene ID Padre, mostramos que es un pago parcial
-            if (p.getIdPedidoPadre() != null) {
-                return new SimpleStringProperty("🔗 Parcial (Ref #" + p.getIdPedidoPadre() + ")");
-            }
-            return new SimpleStringProperty("-");
-        });
-
-        // Estilo opcional: Poner en azulito si es parcial
-        colInfo.setCellFactory(column -> new TableCell<Pedido, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setStyle("");
-                } else {
-                    setText(item);
-                    if (item.contains("🔗")) {
-                        setStyle("-fx-text-fill: #2980b9; -fx-font-weight: bold; -fx-alignment: CENTER;");
-                    } else {
-                        setStyle("-fx-alignment: CENTER; -fx-text-fill: #bdc3c7;");
-                    }
-                }
-            }
-        });
-
-        // UX: BADGES DE COLORES (Tu código original)
-        colMetodo.setCellValueFactory(new PropertyValueFactory<>("metodoPago"));
-        colMetodo.setCellFactory(column -> new TableCell<Pedido, String>() {
-            @Override
-            protected void updateItem(String item, boolean empty) {
-                super.updateItem(item, empty);
-                if (empty || item == null) {
-                    setText(null);
-                    setStyle("");
-                } else {
-                    setText(item);
-                    if (item != null && item.equalsIgnoreCase("Efectivo")) {
-                        setStyle("-fx-background-color: #d4edda; -fx-text-fill: #155724; -fx-alignment: CENTER; -fx-background-radius: 5; -fx-font-weight: bold;");
-                    } else if (item != null && item.toLowerCase().contains("tarjeta")) {
-                        setStyle("-fx-background-color: #d1ecf1; -fx-text-fill: #0c5460; -fx-alignment: CENTER; -fx-background-radius: 5; -fx-font-weight: bold;");
-                    } else {
-                        setStyle("-fx-background-color: #e2d9f3; -fx-text-fill: #512da8; -fx-alignment: CENTER; -fx-background-radius: 5; -fx-font-weight: bold;");
-                    }
-                }
-            }
-        });
-    }
-
-    @FXML
-    public void filtrar() {
-        LocalDate desde = dpDesde.getValue();
-        LocalDate hasta = dpHasta.getValue();
-
-        if (desde == null || hasta == null) return;
-
-        List<Pedido> todasLasVentas = pedidoRepo.findByEstadoOrderByIdDesc("CERRADO");
-
-        List<Pedido> filtrados = todasLasVentas.stream()
-                .filter(p -> (p.getFecha().isEqual(desde) || p.getFecha().isAfter(desde)) &&
-                        (p.getFecha().isEqual(hasta) || p.getFecha().isBefore(hasta)))
-                .collect(Collectors.toList());
-
-        tablaVentas.getItems().setAll(filtrados);
-
-        BigDecimal suma = filtrados.stream().map(Pedido::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
-        lblTotalDia.setText("$ " + suma);
-
-        if (lblCantOperaciones != null) {
-            lblCantOperaciones.setText(String.valueOf(filtrados.size()));
-        }
-    }
-
-    @FXML
-    public void limpiarFiltros() {
-        dpDesde.setValue(LocalDate.now());
-        dpHasta.setValue(LocalDate.now());
-        filtrar();
-    }
-
-    @FXML
-    public void abrirReporteMozo() {
+    private void cargarVentasInicial() {
+        // Por defecto: Carga todo lo cerrado, ORDENADO DESCENDENTE
         try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/Views/ReporteMozo.fxml"));
-            loader.setControllerFactory(context::getBean);
-            Parent root = loader.load();
-            Stage stage = new Stage();
-            stage.setTitle("Reporte por Mozo");
-            stage.initModality(Modality.APPLICATION_MODAL);
-            stage.setScene(new Scene(root));
-            stage.show();
-        } catch (IOException e) { e.printStackTrace(); }
+            List<Pedido> pedidos = pedidoRepository.findByEstadoOrderByIdDesc("CERRADO");
+            llenarTablaVentas(pedidos);
+        } catch (Exception e) {
+            System.err.println("Error cargando ventas iniciales: " + e.getMessage());
+        }
     }
 
     @FXML
-    public void exportarExcel() {
-        List<Pedido> datos = tablaVentas.getItems();
-        if (datos.isEmpty()) {
-            mostrarAlerta("Sin datos", "No hay registros para exportar en la vista actual.");
-            return;
-        }
+    void filtrar(ActionEvent event) {
+        LocalDate inicio = dpDesde.getValue();
+        LocalDate fin = dpHasta.getValue();
 
-        FileChooser fileChooser = new FileChooser();
-        fileChooser.setTitle("Guardar Reporte de Ventas");
-        fileChooser.setInitialFileName("Ventas_" + LocalDate.now() + ".csv");
-        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Archivos CSV (*.csv)", "*.csv"));
-
-        Stage stage = (Stage) tablaVentas.getScene().getWindow();
-        File file = fileChooser.showSaveDialog(stage);
-
-        if (file != null) {
-            try (PrintWriter pw = new PrintWriter(file)) {
-                // AGREGUÉ LA COLUMNA 'REFERENCIA' AL EXCEL TAMBIÉN
-                pw.println("Nro;Fecha;Mesa;Mozo;Referencia;Pago;Total");
-
-                for (Pedido p : datos) {
-                    String referencia = (p.getIdPedidoPadre() != null) ? "Parcial (Ref #" + p.getIdPedidoPadre() + ")" : "-";
-
-                    pw.printf("%d;%s;%d;%s;%s;%s;%.2f%n",
-                            p.getId(), p.getFecha(), p.getMesa().getNumero(),
-                            p.getMozo().getNombre(),
-                            referencia,
-                            p.getMetodoPago(), p.getTotal());
-                }
-
-                mostrarAlerta("Exportación Exitosa", "Reporte guardado en:\n" + file.getAbsolutePath());
-
+        if (inicio != null && fin != null) {
+            try {
+                // Filtro por fechas y orden descendente
+                List<Pedido> pedidosFiltrados = pedidoRepository.findByFechaBetweenAndEstadoOrderByIdDesc(inicio, fin, "CERRADO");
+                llenarTablaVentas(pedidosFiltrados);
+                calcularEstadisticas();
             } catch (Exception e) {
-                e.printStackTrace();
-                mostrarAlerta("Error", "No se pudo guardar el archivo: " + e.getMessage());
+                mostrarAlerta("Error Filtro", "Verifica que el método findByFechaBetween... exista en tu PedidoRepository.");
+            }
+        } else {
+            cargarVentasInicial();
+        }
+    }
+
+    @FXML
+    void limpiarFiltros(ActionEvent event) {
+        inicializarFechas();
+        cargarVentasInicial();
+        calcularEstadisticas();
+    }
+
+    private void llenarTablaVentas(List<Pedido> pedidos) {
+        listaVentas.clear();
+        for (Pedido p : pedidos) {
+            LocalDateTime fechaHora = (p.getFecha() != null && p.getHora() != null)
+                    ? LocalDateTime.of(p.getFecha(), p.getHora())
+                    : LocalDateTime.now();
+
+            String mesaStr = (p.getMesa() != null) ? "Mesa " + p.getMesa().getNumero() : "Barra";
+            String mozoStr = (p.getMozo() != null) ? p.getMozo().getNombre() : "Sin Mozo";
+            String metodoStr = (p.getMetodoPago() != null) ? p.getMetodoPago() : "Sin Definir";
+
+            listaVentas.add(new VentaModel(
+                    p.getId(), fechaHora, mesaStr, mozoStr, "Pedido #" + p.getId(), metodoStr, p.getTotal()
+            ));
+        }
+        tablaVentas.refresh();
+    }
+
+    private void cargarMovimientos() {
+        listaMovimientos.clear();
+        try {
+            // Usamos findAllByOrderByFechaHoraDesc si lo agregaste al repo, sino findAll()
+            List<MovimientoCaja> movs = movimientoRepository.findAllByOrderByFechaHoraDesc();
+
+            for (MovimientoCaja m : movs) {
+                listaMovimientos.add(new MovimientoModel(
+                        m.getFechaHora(), m.getTipo(), m.getCategoria(), m.getDescripcion(), m.getMonto()
+                ));
+            }
+        } catch (Exception e) {
+            // Fallback si no existe el método ordenado
+            List<MovimientoCaja> movs = movimientoRepository.findAll();
+            for (MovimientoCaja m : movs) {
+                listaMovimientos.add(new MovimientoModel(
+                        m.getFechaHora(), m.getTipo(), m.getCategoria(), m.getDescripcion(), m.getMonto()
+                ));
             }
         }
+        tablaMovimientos.refresh();
     }
 
-    private void mostrarAlerta(String titulo, String mensaje) {
-        Alert alert = new Alert(Alert.AlertType.INFORMATION);
-        alert.setTitle(titulo);
-        alert.setHeaderText(null);
-        alert.setContentText(mensaje);
-        alert.show();
+    // ==========================================
+    // ESTADÍSTICAS Y GRÁFICOS (CON EFECTO HOVER)
+    // ==========================================
+
+    private void calcularEstadisticas() {
+        // 1. Totales Numéricos Historial
+        BigDecimal totalVentas = listaVentas.stream()
+                .map(VentaModel::getTotal)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        lblTotalDia.setText(currencyFormat.format(totalVentas));
+        lblCantOperaciones.setText(String.valueOf(listaVentas.size()));
+
+        // 2. Gráfico 1: Ventas por Mozo
+        actualizarGraficoPie(graficoVentas, listaVentas.stream().collect(Collectors.groupingBy(
+                VentaModel::getMozo, Collectors.summingDouble(v -> v.getTotal().doubleValue())
+        )));
+
+        // 3. Gráfico 2: Métodos de Pago (EN HISTORIAL)
+        actualizarGraficoPie(graficoMetodosHistorial, listaVentas.stream().collect(Collectors.groupingBy(
+                VentaModel::getMetodoPago,
+                Collectors.counting()
+        )));
+
+        // 4. Totales Caja
+        BigDecimal ingresos = listaMovimientos.stream().filter(m -> "INGRESO".equals(m.getTipo())).map(MovimientoModel::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal egresos = listaMovimientos.stream().filter(m -> "EGRESO".equals(m.getTipo())).map(MovimientoModel::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        lblTotalIngresos.setText(currencyFormat.format(ingresos));
+        lblTotalEgresos.setText(currencyFormat.format(egresos));
+        lblSaldoCaja.setText(currencyFormat.format(ingresos.subtract(egresos)));
+
+        // 5. Gráfico Caja (Opcional, copia del de historial o solo lo de hoy)
+        // Por ahora le pasamos lo mismo para que no quede vacío
+        actualizarGraficoPie(graficoPagos, listaVentas.stream().collect(Collectors.groupingBy(
+                VentaModel::getMetodoPago, Collectors.counting()
+        )));
     }
 
-    // --- LÓGICA DE CAJA ---
-    private void configurarTablaMovimientos() {
-        DateTimeFormatter fmt = DateTimeFormatter.ofPattern("dd/MM HH:mm");
-        colMovFecha.setCellValueFactory(c -> new SimpleStringProperty(c.getValue().getFechaHora().format(fmt)));
+    // Método genérico para llenar y animar tortas
+    private void actualizarGraficoPie(PieChart chart, Map<String, ? extends Number> datos) {
+        if (chart == null) return; // Protección contra nulos si el FXML no cargó bien
+
+        chart.getData().clear();
+        datos.forEach((key, value) -> {
+            PieChart.Data slice = new PieChart.Data(key, value.doubleValue());
+            chart.getData().add(slice);
+        });
+        aplicarEfectoHover(chart);
+    }
+
+    private void aplicarEfectoHover(PieChart chart) {
+        for (PieChart.Data data : chart.getData()) {
+            data.getNode().addEventHandler(MouseEvent.MOUSE_ENTERED, e -> {
+                data.getNode().setScaleX(1.15); // Agrandar 15%
+                data.getNode().setScaleY(1.15);
+                chart.setCursor(javafx.scene.Cursor.HAND);
+            });
+            data.getNode().addEventHandler(MouseEvent.MOUSE_EXITED, e -> {
+                data.getNode().setScaleX(1.0); // Volver normal
+                data.getNode().setScaleY(1.0);
+                chart.setCursor(javafx.scene.Cursor.DEFAULT);
+            });
+
+            // Tooltip básico
+            Tooltip tooltip = new Tooltip(data.getName() + ": " + data.getPieValue());
+            Tooltip.install(data.getNode(), tooltip);
+        }
+    }
+
+    // ==========================================
+    // CAJA Y OPERACIONES
+    // ==========================================
+
+    private void actualizarEstadoVisual() {
+        if (cajaAbierta) {
+            lblEstadoCaja.setText("🟢 CAJA ABIERTA");
+            lblEstadoCaja.setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
+            if(btnAbrirCaja != null) { btnAbrirCaja.setVisible(false); btnAbrirCaja.setDisable(true); }
+            setBotonesDisable(false);
+        } else {
+            lblEstadoCaja.setText("🔴 CAJA CERRADA");
+            lblEstadoCaja.setStyle("-fx-text-fill: #c0392b; -fx-font-weight: bold;");
+            if(btnAbrirCaja != null) { btnAbrirCaja.setVisible(true); btnAbrirCaja.setDisable(false); }
+            setBotonesDisable(true);
+        }
+    }
+
+    private void setBotonesDisable(boolean disable) {
+        if (btnIngreso != null) btnIngreso.setDisable(disable);
+        if (btnGasto != null) btnGasto.setDisable(disable);
+        if (btnRetiro != null) btnRetiro.setDisable(disable);
+        if (btnCerrarCaja != null) btnCerrarCaja.setDisable(disable);
+    }
+
+    @FXML
+    void accionAbrirCaja(ActionEvent event) {
+        TextInputDialog dialog = new TextInputDialog("0");
+        dialog.setTitle("Apertura de Caja");
+        dialog.setHeaderText("Iniciando Turno");
+        dialog.setContentText("Monto inicial (Cambio):");
+        dialog.showAndWait().ifPresent(montoStr -> {
+            try {
+                BigDecimal monto = new BigDecimal(montoStr);
+                guardarMovimiento("INGRESO", "Caja", "Apertura", monto);
+                cajaAbierta = true;
+                actualizarEstadoVisual();
+            } catch (Exception e) { mostrarAlerta("Error", "Monto inválido"); }
+        });
+    }
+
+    @FXML
+    void accionCerrarCaja(ActionEvent event) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Cierre de Caja");
+        alert.setHeaderText("¿Confirmar Cierre Z?");
+        alert.showAndWait().ifPresent(r -> {
+            if (r == ButtonType.OK) {
+                cajaAbierta = false;
+                actualizarEstadoVisual();
+                mostrarAlerta("Cierre", "Caja cerrada correctamente.");
+            }
+        });
+    }
+
+    @FXML void registrarIngreso() { guardarMovimiento("INGRESO", "Varios", "Ingreso Manual", new BigDecimal("1000")); }
+    @FXML void registrarGasto() { guardarMovimiento("EGRESO", "Proveedores", "Gasto Manual", new BigDecimal("500")); }
+    @FXML void registrarRetiro() { guardarMovimiento("EGRESO", "Retiro", "Sangría", new BigDecimal("2000")); }
+
+    private void guardarMovimiento(String tipo, String cat, String desc, BigDecimal monto) {
+        MovimientoCaja m = new MovimientoCaja(tipo, cat, desc, monto);
+        movimientoRepository.save(m);
+        cargarMovimientos();
+        calcularEstadisticas();
+    }
+
+    @FXML
+    void exportarExcel(ActionEvent event) {
+        FileChooser fileChooser = new FileChooser();
+        fileChooser.setTitle("Guardar Reporte CSV");
+        fileChooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("CSV Files", "*.csv"));
+        File file = fileChooser.showSaveDialog(null);
+        if (file != null) {
+            try (PrintWriter writer = new PrintWriter(file)) {
+                writer.println("ID,Fecha,Mesa,Mozo,Metodo Pago,Total");
+                for (VentaModel v : listaVentas) {
+                    writer.println(v.getId() + "," + v.getFechaHora() + "," + v.getMesa() + "," + v.getMozo() + "," + v.getMetodoPago() + "," + v.getTotal());
+                }
+                mostrarAlerta("Éxito", "Exportado correctamente.");
+            } catch (Exception e) { mostrarAlerta("Error", e.getMessage()); }
+        }
+    }
+
+    @FXML void abrirReporteMozo() { mostrarAlerta("Info", "Próximamente"); }
+
+    private void mostrarAlerta(String t, String c) {
+        Alert a = new Alert(Alert.AlertType.INFORMATION); a.setTitle(t); a.setContentText(c); a.show();
+    }
+
+    private void configurarTablas() {
+        // Ventas
+        colId.setCellValueFactory(new PropertyValueFactory<>("id"));
+        colFecha.setCellValueFactory(new PropertyValueFactory<>("fechaHora"));
+        colMesa.setCellValueFactory(new PropertyValueFactory<>("mesa"));
+        colMozo.setCellValueFactory(new PropertyValueFactory<>("mozo"));
+        colInfo.setCellValueFactory(new PropertyValueFactory<>("detalle"));
+        colMetodo.setCellValueFactory(new PropertyValueFactory<>("metodoPago"));
+        colTotal.setCellValueFactory(new PropertyValueFactory<>("total"));
+
+        colFecha.setCellFactory(c -> new TableCell<>() {
+            @Override protected void updateItem(LocalDateTime item, boolean empty) {
+                super.updateItem(item, empty);
+                setText((empty || item == null) ? null : item.format(timeFormatter));
+            }
+        });
+        colTotal.setCellFactory(c -> new TableCell<>() {
+            @Override protected void updateItem(BigDecimal item, boolean empty) {
+                super.updateItem(item, empty);
+                setText((empty || item == null) ? null : currencyFormat.format(item));
+                setStyle("-fx-alignment: CENTER-RIGHT; -fx-font-weight: bold;");
+            }
+        });
+        tablaVentas.setItems(listaVentas);
+
+        // Movimientos
+        colMovFecha.setCellValueFactory(new PropertyValueFactory<>("fechaHora"));
         colMovTipo.setCellValueFactory(new PropertyValueFactory<>("tipo"));
         colMovCat.setCellValueFactory(new PropertyValueFactory<>("categoria"));
         colMovDesc.setCellValueFactory(new PropertyValueFactory<>("descripcion"));
         colMovMonto.setCellValueFactory(new PropertyValueFactory<>("monto"));
 
-        colMovMonto.setCellFactory(column -> new TableCell<MovimientoCaja, BigDecimal>() {
+        colMovFecha.setCellFactory(c -> new TableCell<>() {
+            @Override protected void updateItem(LocalDateTime item, boolean empty) {
+                super.updateItem(item, empty);
+                setText((empty || item == null) ? null : item.format(timeFormatter));
+            }
+        });
+        colMovMonto.setCellFactory(c -> new TableCell<>() {
             @Override protected void updateItem(BigDecimal item, boolean empty) {
                 super.updateItem(item, empty);
-                if (empty || item == null) { setText(null); setStyle(""); }
+                if (empty || item == null) { setText(null); }
                 else {
-                    setText("$ " + item);
-                    MovimientoCaja row = getTableView().getItems().get(getIndex());
-                    if ("INGRESO".equals(row.getTipo())) setStyle("-fx-text-fill: #27ae60; -fx-font-weight: bold;");
-                    else setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
+                    setText(currencyFormat.format(item));
+                    MovimientoModel row = getTableRow().getItem();
+                    if (row != null) setStyle("INGRESO".equals(row.getTipo()) ? "-fx-text-fill: green; -fx-alignment: CENTER-RIGHT;" : "-fx-text-fill: red; -fx-alignment: CENTER-RIGHT;");
                 }
             }
         });
+        tablaMovimientos.setItems(listaMovimientos);
     }
 
-    private void actualizarCaja() {
-        List<MovimientoCaja> movimientos = cajaRepo.findAllByOrderByFechaHoraDesc();
-        tablaMovimientos.getItems().setAll(movimientos);
+    private void inicializarFechas() { dpDesde.setValue(LocalDate.now()); dpHasta.setValue(LocalDate.now()); }
 
-        BigDecimal ingresosManuales = movimientos.stream().filter(m -> "INGRESO".equals(m.getTipo())).map(MovimientoCaja::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
-        BigDecimal egresos = movimientos.stream().filter(m -> "EGRESO".equals(m.getTipo())).map(MovimientoCaja::getMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal ventasHoy = pedidoRepo.findByEstadoOrderByIdDesc("CERRADO").stream()
-                .filter(p -> p.getFecha().isEqual(LocalDate.now()))
-                .map(Pedido::getTotal).reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        BigDecimal totalIngresos = ingresosManuales.add(ventasHoy);
-        lblTotalIngresos.setText("$ " + totalIngresos);
-        lblTotalEgresos.setText("$ " + egresos);
-        lblSaldoCaja.setText("$ " + totalIngresos.subtract(egresos));
+    // Models
+    public static class VentaModel {
+        private Long id; private LocalDateTime fechaHora; private String mesa, mozo, detalle, metodoPago; private BigDecimal total;
+        public VentaModel(Long id, LocalDateTime fh, String me, String mo, String de, String mp, BigDecimal t) {
+            this.id = id; this.fechaHora = fh; this.mesa = me; this.mozo = mo; this.detalle = de; this.metodoPago = mp; this.total = t;
+        }
+        public Long getId() { return id; } public LocalDateTime getFechaHora() { return fechaHora; }
+        public String getMesa() { return mesa; } public String getMozo() { return mozo; }
+        public String getDetalle() { return detalle; } public String getMetodoPago() { return metodoPago; }
+        public BigDecimal getTotal() { return total; }
     }
-
-    @FXML public void registrarIngreso() { mostrarDialogoMovimiento("INGRESO"); }
-    @FXML public void registrarGasto() { mostrarDialogoMovimiento("EGRESO"); }
-    @FXML public void registrarRetiro() { mostrarDialogoMovimiento("RETIRO"); }
-
-    private void mostrarDialogoMovimiento(String tipo) {
-        Dialog<ButtonType> dialog = new Dialog<>();
-        dialog.setTitle("Movimiento: " + tipo);
-        VBox content = new VBox(10);
-        TextField txtMonto = new TextField(); txtMonto.setPromptText("Monto");
-        TextField txtDesc = new TextField(); txtDesc.setPromptText("Descripción");
-        ComboBox<String> comboCat = new ComboBox<>();
-
-        if (tipo.equals("INGRESO")) comboCat.getItems().addAll("APERTURA", "CAMBIO", "OTRO");
-        else comboCat.getItems().addAll("PROVEEDOR", "RETIRO", "GASTO");
-
-        comboCat.getSelectionModel().selectFirst();
-
-        content.getChildren().addAll(new Label("Categoría"), comboCat, new Label("Monto"), txtMonto, new Label("Descripción"), txtDesc);
-        dialog.getDialogPane().setContent(content);
-        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
-
-        dialog.showAndWait().ifPresent(response -> {
-            if (response == ButtonType.OK) {
-                try {
-                    MovimientoCaja mov = new MovimientoCaja(tipo.equals("RETIRO") ? "EGRESO" : tipo,
-                            comboCat.getValue(), txtDesc.getText(), new BigDecimal(txtMonto.getText()));
-                    cajaRepo.save(mov);
-                    actualizarCaja();
-                } catch (Exception e) { e.printStackTrace(); }
-            }
-        });
+    public static class MovimientoModel {
+        private LocalDateTime fechaHora; private String tipo, categoria, descripcion; private BigDecimal monto;
+        public MovimientoModel(LocalDateTime fh, String t, String c, String d, BigDecimal m) {
+            this.fechaHora = fh; this.tipo = t; this.categoria = c; this.descripcion = d; this.monto = m;
+        }
+        public LocalDateTime getFechaHora() { return fechaHora; } public String getTipo() { return tipo; }
+        public String getCategoria() { return categoria; } public String getDescripcion() { return descripcion; }
+        public BigDecimal getMonto() { return monto; }
     }
 }
