@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<VBox alignment="CENTER" spacing="20" style="-fx-background-color: #2c3e50; -fx-padding: 50;" xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1" fx:controller="gastronomia.sistemaGastronomico.controller.LoginController">
+    <Label text="Bienvenido" textFill="WHITE"><font><Font name="System Bold" size="24"/></font></Label>
+
+    <VBox spacing="10" maxWidth="300" style="-fx-background-color: white; -fx-padding: 20; -fx-background-radius: 10;">
+        <Label text="Usuario:" />
+        <TextField fx:id="txtUsuario" promptText="admin" />
+
+        <Label text="Contraseña:" />
+        <PasswordField fx:id="txtPassword" />
+
+        <Button text="INGRESAR" maxWidth="Infinity" onAction="#ingresar" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-font-weight: bold;"/>
+        <Label fx:id="lblError" textFill="RED" alignment="CENTER" maxWidth="Infinity"/>
+    </VBox>
+</VBox>
