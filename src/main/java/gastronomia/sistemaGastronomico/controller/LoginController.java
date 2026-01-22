@@ -20,7 +20,7 @@ import org.springframework.stereotype.Controller;
 public class LoginController {
 
     @Autowired private UsuarioRepository usuarioRepository;
-    @Autowired private ApplicationContext context; // Para poder cargar la siguiente pantalla con Spring
+    @Autowired private ApplicationContext context;
 
     @FXML private TextField txtUsuario;
     @FXML private PasswordField txtPassword;
@@ -28,10 +28,22 @@ public class LoginController {
 
     @FXML
     public void initialize() {
-        // SEGURIDAD: Si es la primera vez que usas la app (BD vacía), crea un Admin.
+        // SEGURIDAD: Si es la primera vez (BD vacía), crea un Admin por defecto.
         if (usuarioRepository.count() == 0) {
-            usuarioRepository.save(new Usuario("admin", "admin", "Super Admin", Rol.ADMIN, "Sistema", "000"));
-            lblError.setText("Modo inicial: admin / admin");
+            // CORRECCIÓN: Agregamos el PIN "1234" al final del constructor
+            Usuario adminDefault = new Usuario(
+                    "admin",          // Usuario
+                    "admin",          // Password
+                    "Super Admin",    // Nombre
+                    Rol.ADMIN,        // Rol
+                    "Sistema",        // Dirección
+                    "000",            // Teléfono
+                    "1234"            // PIN (Nuevo campo obligatorio)
+            );
+
+            usuarioRepository.save(adminDefault);
+
+            lblError.setText("Modo inicial: admin / admin (PIN: 1234)");
             lblError.setStyle("-fx-text-fill: green;");
         }
     }
@@ -41,16 +53,29 @@ public class LoginController {
         String u = txtUsuario.getText();
         String p = txtPassword.getText();
 
+        if (u.isEmpty() || p.isEmpty()) {
+            mostrarError("Ingrese usuario y contraseña");
+            return;
+        }
+
         // Buscamos el usuario en la BD
         usuarioRepository.findByUsername(u).ifPresentOrElse(usuarioEncontrado -> {
 
             // Verificamos contraseña
             if (usuarioEncontrado.getPassword().equals(p)) {
 
-                // 1. GUARDAMOS LA SESIÓN (¡Esto es lo más importante!)
-                SesionGlobal.usuarioActual = usuarioEncontrado;
+                // 1. Verificar si está activo (por si lo borraste lógicamente)
+                // (Si no tienes el campo activo en Usuario.java, borra este if)
+                // if (!usuarioEncontrado.isActivo()) {
+                //    mostrarError("Usuario inhabilitado.");
+                //    return;
+                // }
 
-                // 2. CAMBIAMOS DE PANTALLA
+                // 2. GUARDAMOS LA SESIÓN GLOBAL
+                SesionGlobal.usuarioActual = usuarioEncontrado;
+                SesionGlobal.mozoActual = null; // Limpiamos mozo por seguridad
+
+                // 3. CAMBIAMOS AL MENÚ PRINCIPAL
                 abrirMenuPrincipal();
 
             } else {
@@ -59,27 +84,42 @@ public class LoginController {
         }, () -> mostrarError("Usuario no encontrado"));
     }
 
+    @FXML
+    void irARegistro() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/Views/RegistroUsuario.fxml"));
+            loader.setControllerFactory(context::getBean);
+            Parent root = loader.load();
+            Stage stage = (Stage) txtUsuario.getScene().getWindow();
+            stage.setScene(new Scene(root));
+            stage.show();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     private void abrirMenuPrincipal() {
         try {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("/Views/MenuPrincipal.fxml"));
-            loader.setControllerFactory(context::getBean); // Inyección de dependencias
+            loader.setControllerFactory(context::getBean);
             Parent root = loader.load();
 
-            // Obtenemos la ventana actual y le cambiamos la escena
             Stage stage = (Stage) txtUsuario.getScene().getWindow();
             stage.setScene(new Scene(root));
+
+            // Título dinámico
             stage.setTitle("Sistema Gastronómico - Usuario: " + SesionGlobal.usuarioActual.getUsername());
-            stage.setMaximized(true); // El menú se ve mejor en pantalla completa
+            stage.setMaximized(true);
             stage.centerOnScreen();
 
         } catch (Exception e) {
             e.printStackTrace();
-            mostrarError("Error al cargar el sistema");
+            mostrarError("Error crítico al cargar el menú.");
         }
     }
 
     private void mostrarError(String msg) {
         lblError.setText(msg);
-        lblError.setStyle("-fx-text-fill: red;");
+        lblError.setStyle("-fx-text-fill: #e74c3c; -fx-font-weight: bold;");
     }
 }

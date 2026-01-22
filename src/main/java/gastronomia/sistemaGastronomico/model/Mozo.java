@@ -9,33 +9,29 @@ public class Mozo {
     private Long id;
     private String nombre;
     private String dni;
-    private String pin;
+    private String pin; // <--- CAMPO NUEVO
 
     public Mozo() {}
 
-    // Constructor COMPLETO (Nombre, DNI, PIN)
+    // Constructor NUEVO (Con PIN)
     public Mozo(String nombre, String dni, String pin) {
         this.nombre = nombre;
         this.dni = dni;
         this.pin = pin;
     }
 
-    // Constructor DE COMPATIBILIDAD (Solo Nombre y DNI) <- ESTE ES EL QUE TE FALTA
+    // Constructor VIEJO (Sin PIN - Arregla el error de "no suitable constructor")
     public Mozo(String nombre, String dni) {
         this.nombre = nombre;
         this.dni = dni;
-        this.pin = "0000"; // PIN por defecto
+        this.pin = "0000"; // Pin por defecto para compatibilidad
     }
 
     // Getters y Setters
     public Long getId() { return id; }
-    public void setId(Long id) { this.id = id; }
     public String getNombre() { return nombre; }
-    public void setNombre(String nombre) { this.nombre = nombre; }
     public String getDni() { return dni; }
-    public void setDni(String dni) { this.dni = dni; }
     public String getPin() { return pin; }
-    public void setPin(String pin) { this.pin = pin; }
 
     @Override public String toString() { return nombre; }
 }

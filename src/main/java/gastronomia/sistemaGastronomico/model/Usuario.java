@@ -9,19 +9,22 @@ public class Usuario {
     private Long id;
 
     @Column(unique = true)
-    private String username; // Para loguearse
+    private String username;
     private String password;
     private String nombreCompleto;
-    private String direccion; // Para Google Maps
+    private String direccion;
     private String telefono;
+    private String pin; // <--- CAMPO NUEVO
 
     @Enumerated(EnumType.STRING)
     private Rol rol;
 
-
     public Usuario() {}
-    public Usuario(String u, String p, String n, Rol r, String dir, String tel) {
-        this.username=u; this.password=p; this.nombreCompleto=n; this.rol=r; this.direccion=dir; this.telefono=tel;
+
+    // Constructor COMPLETO (7 parámetros)
+    public Usuario(String u, String p, String n, Rol r, String dir, String tel, String pin) {
+        this.username=u; this.password=p; this.nombreCompleto=n; this.rol=r;
+        this.direccion=dir; this.telefono=tel; this.pin=pin;
     }
 
     // Getters y Setters
@@ -31,6 +34,9 @@ public class Usuario {
     public String getNombreCompleto() { return nombreCompleto; }
     public Rol getRol() { return rol; }
     public String getDireccion() { return direccion; }
-    public void setDireccion(String direccion) { this.direccion = direccion; }
-    // ... resto de setters
+    public String getTelefono() { return telefono; }
+    public String getPin() { return pin; } // Getter del PIN
+
+    // Setters...
+    public void setPin(String pin) { this.pin = pin; }
 }
