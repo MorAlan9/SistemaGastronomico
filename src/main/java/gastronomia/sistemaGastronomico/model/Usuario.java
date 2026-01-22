@@ -18,6 +18,7 @@ public class Usuario {
     @Enumerated(EnumType.STRING)
     private Rol rol;
 
+
     public Usuario() {}
     public Usuario(String u, String p, String n, Rol r, String dir, String tel) {
         this.username=u; this.password=p; this.nombreCompleto=n; this.rol=r; this.direccion=dir; this.telefono=tel;
