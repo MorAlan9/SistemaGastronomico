@@ -66,6 +66,7 @@ public class RestauranteController extends BaseController {
     public void initialize() {
         cargarSectores();
 
+        // Actualización automática cada 60s
         Timeline timeline = new Timeline(
                 new KeyFrame(Duration.seconds(60), e -> {
                     if (sectorActual != null) cargarMesasDelSector(sectorActual);
@@ -74,14 +75,18 @@ public class RestauranteController extends BaseController {
         timeline.setCycleCount(Timeline.INDEFINITE);
         timeline.play();
 
+        // CONFIGURACIÓN DE TECLAS (F9 y F2)
         Platform.runLater(() -> {
+            // Aseguramos que la escena esté cargada antes de asignar atajos
             if (contenedorMesas.getScene() != null) {
-                // F9 - Volver al menú
+
+                // F9 -> Volver al Menú Principal
                 contenedorMesas.getScene().getAccelerators().put(
                         new KeyCodeCombination(KeyCode.F9),
                         this::volverAlMenu
                 );
-                // F2 - Abrir mesa
+
+                // F2 -> Abrir Mesa por número
                 contenedorMesas.getScene().getAccelerators().put(
                         new KeyCodeCombination(KeyCode.F2),
                         this::accionF2AbrirMesa
@@ -90,7 +95,25 @@ public class RestauranteController extends BaseController {
         });
     }
 
-    // --- MÉTODOS QUE TE FALTABAN ---
+    // --- MÉTODOS DE NAVEGACIÓN ---
+
+    private void volverAlMenu() {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/Views/MenuPrincipal.fxml"));
+            loader.setControllerFactory(context::getBean);
+            Parent root = loader.load();
+
+            Stage stage = (Stage) contenedorMesas.getScene().getWindow();
+            stage.setScene(new Scene(root));
+            stage.setMaximized(true);
+            stage.show();
+        } catch(Exception e) {
+            e.printStackTrace();
+            error("Error de Navegación", "No se pudo cargar el Menú Principal.");
+        }
+    }
+
+    // --- LÓGICA DE NEGOCIO (Sin Cambios) ---
 
     private void cargarSectores() {
         contenedorSectores.getChildren().clear();
@@ -116,6 +139,7 @@ public class RestauranteController extends BaseController {
 
     private void accionF2AbrirMesa() {
         TextInputDialog dialog = new TextInputDialog();
+        estilizar(dialog); // Usamos el método de BaseController para estilizar
         dialog.setTitle("Llamar Mesa");
         dialog.setHeaderText("Ingrese N° de Mesa:");
         dialog.showAndWait().ifPresent(numeroStr -> {
@@ -123,6 +147,7 @@ public class RestauranteController extends BaseController {
                 int numero = Integer.parseInt(numeroStr);
                 Optional<Mesa> mesaOpt = mesaRepo.findByNumero(numero);
                 if (mesaOpt.isPresent()) gestionarClicMesa(mesaOpt.get());
+                else advertencia("Atención", "Mesa no encontrada.");
             } catch (Exception e) {}
         });
     }
@@ -169,18 +194,6 @@ public class RestauranteController extends BaseController {
         return v;
     }
 
-    private void volverAlMenu() {
-        try {
-            FXMLLoader loader = new FXMLLoader(getClass().getResource("/Views/MenuPrincipal.fxml"));
-            loader.setControllerFactory(context::getBean);
-            Parent root = loader.load();
-            Stage stage = (Stage) contenedorMesas.getScene().getWindow();
-            stage.setScene(new Scene(root));
-            stage.setMaximized(true);
-            stage.show();
-        } catch(Exception e) { e.printStackTrace(); }
-    }
-
     private void abrirPantalla(Mesa mesa, String rutaFxml, boolean maximizado) {
         try {
             URL url = getClass().getResource(rutaFxml);
@@ -188,18 +201,27 @@ public class RestauranteController extends BaseController {
             FXMLLoader loader = new FXMLLoader(url);
             loader.setControllerFactory(context::getBean);
             Parent root = loader.load();
+
+            // Inyectar mesa si el controlador tiene el método setMesa
             Object controller = loader.getController();
             try { controller.getClass().getMethod("setMesa", Mesa.class).invoke(controller, mesa); } catch(Exception ignored){}
+
             Stage stage = new Stage();
             stage.setScene(new Scene(root));
             if(maximizado) stage.setMaximized(true);
             else stage.initModality(Modality.APPLICATION_MODAL);
+
+            // Recargar mapa al volver
             stage.setOnHidden(e -> cargarSectores());
+
             stage.show();
-        } catch(Exception e) { e.printStackTrace(); }
+        } catch(Exception e) {
+            e.printStackTrace();
+            error("Error", "No se pudo abrir la pantalla: " + rutaFxml);
+        }
     }
 
-    // Stubs para evitar errores
+    // Métodos vacíos (Stubs) requeridos por el FXML
     @FXML public void nuevaMesaEnSectorActual() {}
     @FXML public void nuevoSector() {}
     @FXML public void buscarMesaRapida() {}
