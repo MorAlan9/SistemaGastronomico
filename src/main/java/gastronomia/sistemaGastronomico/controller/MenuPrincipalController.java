@@ -95,6 +95,10 @@ public class MenuPrincipalController implements Initializable {
         SesionGlobal.usuarioActual = null; // Borramos al usuario
         navegar("/Views/Login.fxml", "Login");
     }
+    @FXML
+    void irAPro() {
+        navegar("/Views/AdminProductos.fxml", "Gestión de Productos");
+    }
 
     // Método genérico para cambiar de pantalla
     private void navegar(String fxml, String titulo) {

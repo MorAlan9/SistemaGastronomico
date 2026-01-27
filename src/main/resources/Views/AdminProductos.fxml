@@ -5,6 +5,7 @@
 <?import javafx.scene.control.CheckBox?>
 <?import javafx.scene.control.ComboBox?>
 <?import javafx.scene.control.Label?>
+<?import javafx.scene.control.Separator?>
 <?import javafx.scene.control.SplitPane?>
 <?import javafx.scene.control.TableColumn?>
 <?import javafx.scene.control.TableView?>
@@ -49,11 +50,6 @@
                                         <TableView fx:constant="CONSTRAINED_RESIZE_POLICY" />
                                     </columnResizePolicy>
                                 </TableView>
-                                <Label text="* Click Derecho para Ocultar o Eliminar definitivamente." textFill="#95a5a6">
-                                    <font>
-                                        <Font size="11.0" />
-                                    </font>
-                                </Label>
                             </children>
                         </VBox>
                     </children>
@@ -71,64 +67,51 @@
                                         <Font name="System Bold" size="18.0" />
                                     </font>
                                 </Label>
-                                <Label text="Complete los datos:" textFill="#7f8c8d" />
 
                                 <VBox spacing="5.0">
                                     <children>
-                                        <Label text="Nombre del Producto:" style="-fx-font-weight: bold;" />
-                                        <TextField fx:id="txtNombre" promptText="Ej: Hamburguesa Completa" />
+                                        <Label text="Nombre:" style="-fx-font-weight: bold;" />
+                                        <TextField fx:id="txtNombre" />
                                     </children>
                                 </VBox>
-
                                 <VBox spacing="5.0">
                                     <children>
-                                        <Label text="Precio de Venta ($):" style="-fx-font-weight: bold;" />
-                                        <TextField fx:id="txtPrecio" promptText="0.00" />
+                                        <Label text="Precio:" style="-fx-font-weight: bold;" />
+                                        <TextField fx:id="txtPrecio" />
                                     </children>
                                 </VBox>
-
                                 <VBox spacing="5.0">
                                     <children>
-                                        <Label text="Stock Disponible:" style="-fx-font-weight: bold;" />
-                                        <TextField fx:id="txtStock" promptText="0" />
+                                        <Label text="Stock:" style="-fx-font-weight: bold;" />
+                                        <TextField fx:id="txtStock" />
                                     </children>
                                 </VBox>
-
                                 <VBox spacing="5.0">
                                     <children>
                                         <Label text="Categoría:" style="-fx-font-weight: bold;" />
-                                        <ComboBox fx:id="cmbCategoria" maxWidth="1.7976931348623157E308" promptText="Seleccione..." />
+                                        <ComboBox fx:id="cmbCategoria" maxWidth="1.7976931348623157E308" />
                                     </children>
                                 </VBox>
+                                <CheckBox fx:id="chkEsCocina" text="Enviar a Cocina" />
 
-                                <VBox spacing="8.0" style="-fx-background-color: #e3f2fd; -fx-background-radius: 5; -fx-border-color: #bbdefb; -fx-border-radius: 5;">
-                                    <children>
-                                        <CheckBox fx:id="chkEsCocina" mnemonicParsing="false" text="Enviar a Cocina">
-                                            <font>
-                                                <Font name="System Bold" size="13.0" />
-                                            </font>
-                                        </CheckBox>
-                                        <Label text="Si activas esto, el producto aparecerá en la comanda de cocina." textFill="#546e7a" wrapText="true">
-                                            <font>
-                                                <Font size="10.0" />
-                                            </font>
-                                        </Label>
-                                    </children>
-                                    <padding>
-                                        <Insets bottom="10.0" left="10.0" right="10.0" top="10.0" />
-                                    </padding>
-                                </VBox>
+                                <Button fx:id="btnGuardar" maxWidth="1.7976931348623157E308" onAction="#guardarProducto" style="-fx-background-color: #27ae60; -fx-text-fill: white;" text="💾 GUARDAR CAMBIOS">
+                                    <font><Font name="System Bold" size="14.0" /></font>
+                                </Button>
 
-                                <Button fx:id="btnGuardar" maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#guardarProducto" prefHeight="45.0" style="-fx-background-color: #27ae60; -fx-text-fill: white; -fx-cursor: hand;" text="💾 GUARDAR CAMBIOS">
+                                <Button maxWidth="1.7976931348623157E308" onAction="#limpiarFormulario" text="Cancelar" />
+
+                                <Separator />
+
+                                <Button fx:id="btnVolver"
+                                        maxWidth="1.7976931348623157E308"
+                                        onAction="#volverAlMenu"
+                                        style="-fx-background-color: #e67e22; -fx-text-fill: white; -fx-cursor: hand;"
+                                        text="⬅ VOLVER (F9)">
                                     <font>
                                         <Font name="System Bold" size="14.0" />
                                     </font>
-                                    <VBox.margin>
-                                        <Insets top="15.0" />
-                                    </VBox.margin>
                                 </Button>
 
-                                <Button maxWidth="1.7976931348623157E308" mnemonicParsing="false" onAction="#limpiarFormulario" style="-fx-background-color: transparent; -fx-text-fill: #95a5a6; -fx-underline: true; -fx-cursor: hand;" text="Cancelar / Limpiar" />
                             </children>
                         </VBox>
                     </children>
