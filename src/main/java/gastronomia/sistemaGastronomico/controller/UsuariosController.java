@@ -5,7 +5,7 @@ import gastronomia.sistemaGastronomico.model.Rol;
 import gastronomia.sistemaGastronomico.model.Usuario;
 import gastronomia.sistemaGastronomico.utils.GoogleMaps;
 import gastronomia.sistemaGastronomico.JavaFxApplication;
-import javafx.application.HostServices;
+import javafx.application.Platform; // Import
 import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
@@ -14,6 +14,8 @@ import javafx.scene.Parent;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.input.KeyCode; // Import
+import javafx.scene.input.KeyCodeCombination; // Import
 import javafx.stage.Stage;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -26,13 +28,12 @@ import java.util.ResourceBundle;
 public class UsuariosController implements Initializable {
 
     @Autowired private UsuarioRepository usuarioRepository;
-    @Autowired private ApplicationContext context; // Para navegar
-    @Autowired private JavaFxApplication app;      // Para los mapas
+    @Autowired private ApplicationContext context;
+    @Autowired private JavaFxApplication app;
 
     @FXML private TableView<Usuario> tablaUsuarios;
     @FXML private TableColumn<Usuario, String> colNombre, colUser, colRol, colDireccion;
 
-    // Campos para edición rápida (Opcional, si quieres agregar desde aquí)
     @FXML private TextField txtNombre, txtUser, txtPass, txtDireccion;
     @FXML private ComboBox<Rol> cmbRol;
 
@@ -41,8 +42,17 @@ public class UsuariosController implements Initializable {
         configurarTabla();
         cargarUsuarios();
 
-        // Cargar roles si existen los campos
         if(cmbRol != null) cmbRol.setItems(FXCollections.observableArrayList(Rol.values()));
+
+        // --- AGREGADO: F9 PARA VOLVER ---
+        Platform.runLater(() -> {
+            if (tablaUsuarios.getScene() != null) {
+                tablaUsuarios.getScene().getAccelerators().put(
+                        new KeyCodeCombination(KeyCode.F9),
+                        this::volverAlMenu
+                );
+            }
+        });
     }
 
     private void configurarTabla() {
@@ -56,7 +66,6 @@ public class UsuariosController implements Initializable {
         tablaUsuarios.setItems(FXCollections.observableArrayList(usuarioRepository.findAll()));
     }
 
-    // --- ACCIÓN: ABRIR EL FORMULARIO DE ALTA (REUTILIZAMOS EL QUE HICIMOS ANTES) ---
     @FXML
     void nuevoUsuario() {
         try {
@@ -69,7 +78,7 @@ public class UsuariosController implements Initializable {
             stage.initModality(javafx.stage.Modality.APPLICATION_MODAL);
             stage.showAndWait();
 
-            cargarUsuarios(); // Recargar tabla al cerrar el formulario
+            cargarUsuarios();
         } catch (Exception e) { e.printStackTrace(); }
     }
 
@@ -88,7 +97,6 @@ public class UsuariosController implements Initializable {
         if (u != null) GoogleMaps.abrirMapa(app.getHostServices(), u.getDireccion());
     }
 
-    // --- NAVEGACIÓN: VOLVER AL MENÚ ---
     @FXML
     void volverAlMenu() {
         try {
@@ -99,6 +107,7 @@ public class UsuariosController implements Initializable {
             stage.setScene(new Scene(root));
             stage.setTitle("Sistema Gastronómico - Menú Principal");
             stage.setMaximized(true);
+            stage.show(); // Forzamos show para asegurar refresco
         } catch (Exception e) { e.printStackTrace(); }
     }
 }
