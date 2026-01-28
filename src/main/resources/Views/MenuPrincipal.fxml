@@ -81,7 +81,15 @@
                             </font>
                         </Button>
 
-                        <Button fx:id="btnProductos" maxWidth="1.7976931348623157E308" maxHeight="1.7976931348623157E308" mnemonicParsing="false" style="-fx-background-color: #e67e22; -fx-text-fill: white; -fx-background-radius: 10; -fx-cursor: hand;" text="🍔&#10;PRODUCTOS" textAlignment="CENTER" GridPane.columnIndex="2">
+                        <Button fx:id="btnProductos"
+                                maxWidth="1.7976931348623157E308"
+                                maxHeight="1.7976931348623157E308"
+                                mnemonicParsing="false"
+                                onAction="#irAProductos"
+                                style="-fx-background-color: #e67e22; -fx-text-fill: white; -fx-background-radius: 10; -fx-cursor: hand;"
+                                text="🍔&#10;PRODUCTOS"
+                                textAlignment="CENTER"
+                                GridPane.columnIndex="2">
                             <font>
                                 <Font name="System Bold" size="20.0" />
                             </font>
