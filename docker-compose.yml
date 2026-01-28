@@ -1,0 +1,19 @@
+version: '3.8'
+
+services:
+  # Servicio de Base de Datos
+  mysqldb:
+    image: mysql:8.0
+    container_name: db_sistema_gastronomico
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: restobar
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+
+# Volumen para que los datos no se borren al apagar la PC
+volumes:
+  db_data:
