@@ -24,7 +24,7 @@ public abstract class BaseController {
         AlertaHelper.mostrarAlerta(titulo, mensaje, Alert.AlertType.WARNING);
     }
 
-    protected void info(String titulo, String mensaje) {
+    protected void informacion(String titulo, String mensaje) {
         AlertaHelper.mostrarAlerta(titulo, mensaje, Alert.AlertType.INFORMATION);
     }
 

@@ -15,18 +15,21 @@ public class Pedido {
     private Long id;
 
     private LocalDate fecha;
-    private LocalTime hora;
+    private LocalTime hora; // Hora de apertura de mesa
     private String estado; // "ABIERTO", "CERRADO"
     private BigDecimal total;
 
-    // --- CAMPO IMPORTANTE PARA EL COBRO ---
     private String metodoPago; // "Efectivo", "Tarjeta", "QR"
 
     private LocalDateTime horaComanda;
     private LocalDateTime horaEntrega;
     private LocalDateTime horaUltimoProducto;
 
-    // Cantidad de personas en la mesa (opcional)
+    // --- CAMPO NUEVO PARA EL RELOJ DE COMIDA ---
+    private LocalTime horaServido;
+    // -------------------------------------------
+
+    // Cantidad de personas en la mesa
     private Integer comensales;
 
     @ManyToOne
@@ -36,6 +39,10 @@ public class Pedido {
     @ManyToOne
     @JoinColumn(name = "id_mozo")
     private Mozo mozo;
+
+    // Referencia al pedido original (si hubo cambio de mesa/unión)
+    @Column(name = "id_pedido_padre")
+    private Long idPedidoPadre;
 
     public Pedido() {
     }
@@ -84,19 +91,14 @@ public class Pedido {
     public LocalDateTime getHoraUltimoProducto() { return horaUltimoProducto; }
     public void setHoraUltimoProducto(LocalDateTime horaUltimoProducto) { this.horaUltimoProducto = horaUltimoProducto; }
 
+    // --- GETTER Y SETTER NUEVOS (CRÍTICOS) ---
+    public LocalTime getHoraServido() { return horaServido; }
+    public void setHoraServido(LocalTime horaServido) { this.horaServido = horaServido; }
+    // -----------------------------------------
+
     public Integer getComensales() { return comensales; }
     public void setComensales(Integer comensales) { this.comensales = comensales; }
 
-    // CAMPO NUEVO: Referencia al pedido original
-    @Column(name = "id_pedido_padre")
-    private Long idPedidoPadre;
-
-    // Getter y Setter
-    public Long getIdPedidoPadre() {
-        return idPedidoPadre;
-    }
-
-    public void setIdPedidoPadre(Long idPedidoPadre) {
-        this.idPedidoPadre = idPedidoPadre;
-    }
+    public Long getIdPedidoPadre() { return idPedidoPadre; }
+    public void setIdPedidoPadre(Long idPedidoPadre) { this.idPedidoPadre = idPedidoPadre; }
 }
