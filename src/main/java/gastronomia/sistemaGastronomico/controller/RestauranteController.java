@@ -131,19 +131,32 @@ public class RestauranteController extends BaseController {
                     contextMenu.getItems().add(itemComida);
                 }
 
-                // Opción B: Ver Pedido
+                // Opción B: Mover a otra Mesa (Mudanza) - NUEVO
+                MenuItem itemMover = new MenuItem("🔄 Mover a otra Mesa (Mudanza)");
+                itemMover.setOnAction(e -> accionMoverClientes(mesa, p));
+
+                // Opción C: Ver Pedido
                 MenuItem itemVer = new MenuItem("📝 Ver / Editar Pedido");
                 itemVer.setOnAction(e -> abrirPantalla(mesa, "/Views/pedido.fxml", true));
 
-                // Opción C: Cerrar Mesa
+                // Opción D: Cerrar Mesa
                 MenuItem itemCerrar = new MenuItem("💰 Cerrar Mesa (Cobrar)");
                 itemCerrar.setOnAction(e -> abrirPantalla(mesa, "/Views/pedido.fxml", true));
 
-                // Opción D: Renombrar Mesa (Corrección administrativa)
+                // Opción E: Renombrar Mesa (Corrección administrativa)
                 MenuItem itemRenombrar = new MenuItem("✏️ Cambiar N° de Mesa");
                 itemRenombrar.setOnAction(e -> accionEditarNumeroMesa(mesa));
 
-                contextMenu.getItems().addAll(new SeparatorMenuItem(), itemVer, itemCerrar, new SeparatorMenuItem(), itemRenombrar);
+                // Agregamos todo al menú con separadores para ordenar
+                contextMenu.getItems().addAll(
+                        new SeparatorMenuItem(),
+                        itemMover,
+                        new SeparatorMenuItem(),
+                        itemVer,
+                        itemCerrar,
+                        new SeparatorMenuItem(),
+                        itemRenombrar
+                );
                 btn.setContextMenu(contextMenu);
 
             } else {
@@ -230,11 +243,10 @@ public class RestauranteController extends BaseController {
         return v;
     }
 
-    // --- NUEVO MÉTODO: CAMBIAR NÚMERO DE MESA (Renombrar) ---
-
+    // --- ACCIÓN: EDITAR NÚMERO (Renombrar mesa) ---
     private void accionEditarNumeroMesa(Mesa mesa) {
         TextInputDialog dialog = new TextInputDialog(String.valueOf(mesa.getNumero()));
-        estilizar(dialog); // Asegúrate de que este método exista en BaseController
+        estilizar(dialog);
         dialog.setTitle("Configurar Mesa");
         dialog.setHeaderText("Editar numeración de la Mesa " + mesa.getNumero());
         dialog.setContentText("Ingrese el NUEVO número real:");
@@ -245,7 +257,6 @@ public class RestauranteController extends BaseController {
             try {
                 int nuevoNumero = Integer.parseInt(resultado.get());
 
-                // Validaciones
                 if (nuevoNumero == mesa.getNumero()) return;
 
                 Optional<Mesa> conflicto = mesaRepo.findByNumero(nuevoNumero);
@@ -254,11 +265,8 @@ public class RestauranteController extends BaseController {
                     return;
                 }
 
-                // Guardar Cambio
                 mesa.setNumero(nuevoNumero);
                 mesaRepo.save(mesa);
-
-                // Actualizar vista
                 cargarMesasDelSector(sectorActual);
                 informacion("Guardado", "La mesa ahora es la N° " + nuevoNumero);
 
@@ -267,6 +275,55 @@ public class RestauranteController extends BaseController {
             } catch (Exception e) {
                 e.printStackTrace();
                 error("Error", "No se pudo cambiar el número.");
+            }
+        }
+    }
+
+    // --- ACCIÓN: MOVER CLIENTES (Mudanza) - NUEVO ---
+    private void accionMoverClientes(Mesa mesaActual, Pedido pedidoActual) {
+        TextInputDialog dialog = new TextInputDialog();
+        estilizar(dialog);
+        dialog.setTitle("Mover Mesa (Mudanza)");
+        dialog.setHeaderText("Mover clientes de la Mesa " + mesaActual.getNumero());
+        dialog.setContentText("Ingrese el N° de la mesa de DESTINO (debe estar libre):");
+
+        Optional<String> resultado = dialog.showAndWait();
+
+        if (resultado.isPresent()) {
+            try {
+                int nroDestino = Integer.parseInt(resultado.get());
+
+                // Validar que no sea la misma
+                if (nroDestino == mesaActual.getNumero()) return;
+
+                // Buscar mesa destino
+                Optional<Mesa> mesaDestinoOpt = mesaRepo.findByNumero(nroDestino);
+
+                if (mesaDestinoOpt.isPresent()) {
+                    Mesa mesaDestino = mesaDestinoOpt.get();
+
+                    // Validar que destino esté LIBRE
+                    Optional<Pedido> pedidoEnDestino = pedidoRepo.findFirstByMesaAndEstado(mesaDestino, "ABIERTO");
+
+                    if (pedidoEnDestino.isPresent()) {
+                        advertencia("Mesa Ocupada", "La mesa " + nroDestino + " ya está ocupada.");
+                    } else {
+                        // Realizar la Mudanza
+                        pedidoActual.setMesa(mesaDestino);
+                        pedidoRepo.save(pedidoActual);
+
+                        cargarMesasDelSector(sectorActual); // Refrescar
+                        informacion("Éxito", "Clientes movidos correctamente a la Mesa " + nroDestino);
+                    }
+                } else {
+                    error("Error", "La mesa N° " + nroDestino + " no existe.");
+                }
+
+            } catch (NumberFormatException e) {
+                error("Error", "Debe ingresar un número válido.");
+            } catch (Exception e) {
+                e.printStackTrace();
+                error("Error", "No se pudo realizar el movimiento.");
             }
         }
     }
